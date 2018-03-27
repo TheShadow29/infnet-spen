@@ -44,6 +44,9 @@ def main():
     test_data = FigmentDataGenerator(config, split='Etest')
     logger.info("test set loaded :- %d instances", test_data.len)
 
+    # Updating configuration file
+    
+
     sys.exit(0)
 
     # create tensorboard logger

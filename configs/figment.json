@@ -7,5 +7,7 @@
 	"state_size": [784],
 	"max_to_keep": 5,
 	"data_dir": "data/figment/",
-	"embedding_size": 200
+	"embedding_size": 200,
+	"hidden_units": 200,
+	"embedding_tune": true
 }

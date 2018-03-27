@@ -5,10 +5,7 @@
 	"learning_rate": 0.001,
 	"batch_size": 16,
 	"state_size": [784],
-	"max_to_keep":5,
-	"tdir": "./data/figment/",
-	"type_file": "types",
-	"entity_file": "Etrain",
-	"embedding_file": "embeddings.txt",
-	"ds": "train"
+	"max_to_keep": 5,
+	"data_dir": "data/figment/",
+	"embedding_size": 200
 }

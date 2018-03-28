@@ -1,6 +1,6 @@
 import tensorflow as tf
 from data_loader.data_generator import FigmentDataGenerator, load_embeddings, load_vocab
-from models.example_model import ExampleModel
+from models.example_model import SPEN
 from trainers.example_trainer import ExampleTrainer
 from utils.config import process_config
 from utils.dirs import create_dirs
@@ -25,9 +25,9 @@ def main():
 
     sess = tf.Session(config=sconfig)
     # create instance of the model you want
-    model = ExampleModel(config)
-    # load model if exist
-    model.load(sess)
+    # model = ExampleModel(config)
+    # # load model if exist
+    # model.load(sess)
 
     # This is outside data generator since it's used to explicitly init TF model
     embeddings = load_embeddings(config)
@@ -45,7 +45,7 @@ def main():
     logger.info("test set loaded :- %d instances", test_data.len)
 
     # Updating configuration file
-    
+
 
     sys.exit(0)
 

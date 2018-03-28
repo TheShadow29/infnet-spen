@@ -9,5 +9,5 @@
 	"data_dir": "data/figment/",
 	"embedding_size": 200,
 	"hidden_units": 200,
-	"embedding_tune": true
+	"embedding_tune": false
 }

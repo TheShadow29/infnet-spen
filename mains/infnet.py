@@ -22,11 +22,9 @@ def main():
 
     sconfig = tf.ConfigProto()
     sconfig.gpu_options.allow_growth = True
-    # sconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
 
     sess = tf.Session(config=sconfig)
     # create instance of the model you want
-    # model = ExampleModel(config)
     model = SPEN(config)
     # # load model if exist
     # model.load(sess)

@@ -1,5 +1,4 @@
 import json
-from bunch import Bunch
 import os
 import munch
 
@@ -14,14 +13,14 @@ def get_config_from_json(json_file):
     with open(json_file, 'r') as config_file:
         config_dict = json.load(config_file)
 
-    # convert the dictionary to a namespace using bunch lib
-    config = Bunch(config_dict)
-
-    return config, config_dict
+    return config_dict
 
 
 def process_config(jsonfile):
-    config, _ = get_config_from_json(jsonfile)
+    config_dict = get_config_from_json(jsonfile)
+    config = munch.Munch(config_dict)
+    config.train = munch.Munch(config.train)
+
     config.summary_dir = os.path.join("experiments", config.exp_name, "summary/")
     config.checkpoint_dir = os.path.join("experiments", config.exp_name, "checkpoint/")
-    return munch.Munch(config)
+    return config

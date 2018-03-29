@@ -17,34 +17,40 @@ class SPEN(BaseModel):
 
     def build_model(self):
         config = self.config
+        regularizer = tf.contrib.layers.l2_regularizer(1.0)
+
         self.is_training = tf.placeholder(tf.bool)
 
         self.input_x = tf.placeholder(
-            tf.int64, shape=[config['train']['batch_size']]
+            tf.int64, shape=[config.train.batch_size]
         )
         self.labels_y = tf.placeholder(
-            tf.float32, shape=[config['train']['batch_size'], config['type_vocab_size']]
+            tf.float32, shape=[config.train.batch_size, config.type_vocab_size]
         )
 
         self.create_embeddings_graph()
         self.feature_input = tf.nn.embedding_lookup(self.embeddings, self.input_x)
-        print('Feature Input', self.feature_input.get_shape())
 
-        with tf.variable_scope("energy_net", regularizer=tf.contrib.layers.l2_regularizer):
-            self.energy_truth = EnergyNet(config, self.feature_input, self.labels_y)
+        with tf.variable_scope("energy_net", regularizer=regularizer):
+            self.energy_net1 = EnergyNet(
+                config, self.feature_input, self.labels_y
+            )
 
-        with tf.variable_scope("inference_net", regularizer=tf.contrib.layers.l2_regularizer):
-            self.inference_out = InferenceNet(config, self.feature_input)
+        with tf.variable_scope("inference_net", regularizer=regularizer):
+            self.inference_net = InferenceNet(
+                config, self.feature_input
+            )
 
-        with tf.variable_scope("energy_net", reuse=True,
-                               regularizer=tf.contrib.layers.l2_regularizer):
-            self.energy_infer = EnergyNet(config, self.feature_input, self.inference_out)
+        with tf.variable_scope("energy_net", reuse=True, regularizer=regularizer):
+            self.energy_net2 = EnergyNet(
+                config, self.feature_input, self.inference_net.layer2_out
+            )
 
         # Loss functions for Eqn7
         # Eqn8, replacing structured hinge loss with absolute_difference
         # To maximize
-        lamb_reg_phi = config['lamb_reg_phi']
-        lamb_reg_theta = config['lamb_reg_theta']
+        lamb_reg_phi = config.lamb_reg_phi
+        lamb_reg_theta = config.lamb_reg_theta
         reg_losses_phi = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES,
                                            scope="inference_net")
         reg_losses_theta = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES,
@@ -67,8 +73,8 @@ class SPEN(BaseModel):
 
     def create_embeddings_graph(self):
         config = self.config
-        vocab_size = config['entities_vocab_size']
-        e_size = config['embedding_size']
+        vocab_size = config.entities_vocab_size
+        e_size = config.embedding_size
         # Logic for embeddings
         self.embeddings_placeholder = tf.placeholder(
             tf.float32, [vocab_size, e_size]
@@ -76,7 +82,7 @@ class SPEN(BaseModel):
         self.embeddings = tf.get_variable(
             "embedding", [vocab_size, e_size],
             initializer=random_uniform(0.25),
-            trainable=config['embeddings_tune']
+            trainable=config.embeddings_tune
         )
 
         # Used in the static / non-static configurations

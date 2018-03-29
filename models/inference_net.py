@@ -8,19 +8,20 @@ class InferenceNet(object):
         """
         self.input_x = input_x
         self.config = config
-        self.batch_size, self.embedding_size = tf.get_shape(input_x)
-        self.type_vocab_len = config['type_vocab_len']
+        self.batch_size, self.embedding_size = input_x.get_shape()
+        self.type_vocab_size = config.type_vocab_size
         self.build_model()
 
     def build_model(self):
+
         self.layer1_out = tf.layers.dense(
-            input=self.input_x,
-            units=self.config['hidden_units'],
+            inputs=self.input_x,
+            units=self.config.train.hidden_units,
             activation=tf.nn.relu
         )
 
         self.layer2_out = tf.layers.dense(
-            input=self.layer1_out,
-            units=self.type_vocab_len,
+            inputs=self.layer1_out,
+            units=self.type_vocab_size,
             activation=tf.sigmoid
         )

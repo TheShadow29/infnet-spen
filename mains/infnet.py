@@ -1,6 +1,6 @@
 import tensorflow as tf
 from data_loader.data_generator import FigmentDataGenerator, load_embeddings, load_vocab
-from models.example_model import SPEN
+from models.spen import SPEN
 from trainers.example_trainer import ExampleTrainer
 from utils.config import process_config
 from utils.dirs import create_dirs
@@ -15,6 +15,7 @@ logger = get_logger(__name__)
 
 def main():
     args = get_args()
+    # config is of type Munch
     config = process_config(args.config)
 
     create_dirs([config.summary_dir, config.checkpoint_dir])
@@ -26,6 +27,7 @@ def main():
     sess = tf.Session(config=sconfig)
     # create instance of the model you want
     # model = ExampleModel(config)
+    model = SPEN(config)
     # # load model if exist
     # model.load(sess)
 
@@ -45,7 +47,6 @@ def main():
     logger.info("test set loaded :- %d instances", test_data.len)
 
     # Updating configuration file
-
 
     sys.exit(0)
 

@@ -20,27 +20,54 @@ class SPEN(BaseModel):
         self.is_training = tf.placeholder(tf.bool)
 
         self.input_x = tf.placeholder(
-            tf.int64, shape=[config['batch_size'], config['embedding_size']]
+            tf.int64, shape=[config['train']['batch_size']]
         )
         self.labels_y = tf.placeholder(
-            tf.float32, shape=[config['batch_size'], config['type_vocab_len']]
+            tf.float32, shape=[config['train']['batch_size'], config['type_vocab_size']]
         )
 
         self.create_embeddings_graph()
-        self.feature_input = tf.nn.embedding_lookup(self.embeddings, self.inputs)
+        self.feature_input = tf.nn.embedding_lookup(self.embeddings, self.input_x)
+        print('Feature Input', self.feature_input.get_shape())
 
-        with tf.variable_scope("energy_net"):
+        with tf.variable_scope("energy_net", regularizer=tf.contrib.layers.l2_regularizer):
             self.energy_truth = EnergyNet(config, self.feature_input, self.labels_y)
 
-        with tf.variable_scope("inference_net"):
+        with tf.variable_scope("inference_net", regularizer=tf.contrib.layers.l2_regularizer):
             self.inference_out = InferenceNet(config, self.feature_input)
 
-        with tf.variable_scope("energy_net", reuse=True):
+        with tf.variable_scope("energy_net", reuse=True,
+                               regularizer=tf.contrib.layers.l2_regularizer):
             self.energy_infer = EnergyNet(config, self.feature_input, self.inference_out)
+
+        # Loss functions for Eqn7
+        # Eqn8, replacing structured hinge loss with absolute_difference
+        # To maximize
+        lamb_reg_phi = config['lamb_reg_phi']
+        lamb_reg_theta = config['lamb_reg_theta']
+        reg_losses_phi = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES,
+                                           scope="inference_net")
+        reg_losses_theta = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES,
+                                             scope="energy_net")
+        self.cost = (tf.maximum(tf.losses.absolute_difference(self.labels_y, self.inference_out)
+                                - self.energy_infer + self.energy_truth, tf.constant([0]))
+                     + lamb_reg_theta * tf.add_n(reg_losses_theta)
+                     - lamb_reg_phi * tf.add_n(reg_losses_phi))
+
+        phi_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="inference_net")
+        theta_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="energy_net")
+
+        self.phi_opt = tf.train.AdamOptimizer(
+            config.train.lr).minimize(
+                -self.cost, var_list=phi_vars)
+        self.theta_opt = tf.train.AdamOptimizer(
+            config.train.lr).minimize(self.cost, var_list=theta_vars)
+
+        return
 
     def create_embeddings_graph(self):
         config = self.config
-        vocab_size = config['entities_vocab_len']
+        vocab_size = config['entities_vocab_size']
         e_size = config['embedding_size']
         # Logic for embeddings
         self.embeddings_placeholder = tf.placeholder(

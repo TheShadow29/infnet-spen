@@ -13,26 +13,30 @@ class EnergyNet(object):
         self.input_x = input_x
         self.input_y = input_y
         self.config = config
-        self.type_vocab_len = config.type_vocab_len
-        self.batch_size, self.embedding_size = tf.get_shape(input_x)
+        self.type_vocab_len = config.type_vocab_size
+        # get_shape giving too many values to unpack
+        # self.batch_size, self.embedding_size = input_x.get_shape()
+        print('Input Dim', input_x.get_shape())
+        self.batch_size, self.embedding_size = input_x.get_shape()
 
         self.build_model()
 
     def build_model(self):
         # creating the linear energy model
-        self.linear_wt = linear_wt = tf.get_variable(
-            "linear_wt", [self.embedding_size, self.type_vocab_len]
-        )
+        # with tf.name_scope("dummy"):
+        self.linear_wt = tf.get_variable("linear_wt", [self.embedding_size, self.type_vocab_len])
         # Equation 1, Tu & Gimpel 2018
         self.linear_out = tf.reduce_sum(
-            tf.multiply(tf.matmul(self.input_x, linear_wt), self.input_y),
+            tf.multiply(tf.matmul(self.input_x, self.linear_wt), self.input_y),
             axis=1
         )
 
         # creating the label energy function
+        # C1 in eqn2
         self.label_matrix = label_matrix = tf.get_variable(
             "label_matrix", [self.type_vocab_len, self.type_vocab_len]
         )
+        # c2 in eqn2
         self.label_vector = label_vector = tf.get_variable(
             "label_vector", [1, self.type_vocab_len]
         )

@@ -4,13 +4,13 @@ import _pickle as cPickle
 
 
 def load_embeddings(config):
-    data_dir = config['data_dir']
+    data_dir = config.data.data_dir
     return np.load(os.path.join(data_dir, 'reduced_embeddings.npy'))
 
 
 def load_vocab(config):
     # ## TODO - Could move to this to classmethod
-    data_dir = config['data_dir']
+    data_dir = config.data.data_dir
 
     # Loading the type vocabulary
     types = []
@@ -40,7 +40,7 @@ class FigmentDataGenerator(object):
         self.batch_pointer = 0
 
     def load_data(self):
-        data_dir = self.config['data_dir']
+        data_dir = self.config.data.data_dir
         # Load the current split
         with open(os.path.join(data_dir, '%s.pickle' % self.split), 'rb') as f:
             self.data = cPickle.load(f)

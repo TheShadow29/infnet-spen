@@ -49,14 +49,16 @@ class SPEN(BaseModel):
         # Loss functions for Eqn7
         # Eqn8, replacing structured hinge loss with absolute_difference
         # To maximize
-        lamb_reg_phi = config.lamb_reg_phi
-        lamb_reg_theta = config.lamb_reg_theta
+        lamb_reg_phi = config.train.lamb_reg_phi
+        lamb_reg_theta = config.train.lamb_reg_theta
         reg_losses_phi = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES,
                                            scope="inference_net")
         reg_losses_theta = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES,
                                              scope="energy_net")
-        self.cost = (tf.maximum(tf.losses.absolute_difference(self.labels_y, self.inference_out)
-                                - self.energy_infer + self.energy_truth, tf.constant([0]))
+        self.cost = (tf.maximum(tf.losses.absolute_difference(self.labels_y,
+                                                              self.inference_net.layer2_out)
+                                - self.energy_net2.energy_out + self.energy_net1.energy_out,
+                                tf.constant([0], dtype=tf.float32))
                      + lamb_reg_theta * tf.add_n(reg_losses_theta)
                      - lamb_reg_phi * tf.add_n(reg_losses_phi))
 

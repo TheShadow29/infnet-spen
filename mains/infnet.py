@@ -1,7 +1,7 @@
 import tensorflow as tf
 from data_loader.data_generator import FigmentDataGenerator, load_embeddings, load_vocab
 from models.spen import SPEN
-from trainers.example_trainer import ExampleTrainer
+from trainers.spen_trainer import SpenTrainer
 from utils.config import process_config
 from utils.dirs import create_dirs
 from utils.logger import get_logger, TFLogger
@@ -46,12 +46,12 @@ def main():
 
     # Updating configuration file
 
-    sys.exit(0)
+    # sys.exit(0)
 
     # create tensorboard logger
     tf_logger = TFLogger(sess, config)
     # create trainer and path all previous components to it
-    trainer = ExampleTrainer(sess, model, train_data, config, tf_logger)
+    trainer = SpenTrainer(sess, model, train_data, config, tf_logger)
 
     # here you train your model
     trainer.train()

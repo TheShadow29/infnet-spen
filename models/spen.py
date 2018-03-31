@@ -46,6 +46,16 @@ class SPEN(BaseModel):
                 config, self.feature_input, self.inference_net.layer2_out
             )
 
+        with tf.variable_scope("test_inference_net", regularizer=regularizer):
+            self.test_inference_net = InferenceNet(
+                config, self.feature_input
+            )
+
+        with tf.variable_scope("energy_net", reuse=True, regularizer=regularizer):
+            self.energy_net3 = EnergyNet(
+                config, self.feature_input, self.test_inference_net.layer2_out
+            )
+
         # Loss functions for Eqn7
         # Eqn8, replacing structured hinge loss with absolute_difference
         # To maximize
@@ -66,10 +76,21 @@ class SPEN(BaseModel):
         theta_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="energy_net")
 
         self.phi_opt = tf.train.AdamOptimizer(
-            config.train.lr).minimize(
+            config.train.lr_phi).minimize(
                 -self.cost, var_list=phi_vars)
         self.theta_opt = tf.train.AdamOptimizer(
-            config.train.lr).minimize(self.cost, var_list=theta_vars)
+            config.train.lr_theta).minimize(self.cost, var_list=theta_vars)
+
+        self.test_cost = tf.reduce_sum(self.energy_net3.energy_out)
+        shi_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="test_inference_net")
+        self.shi_opt = tf.train.AdamOptimizer(
+            config.train.lr_shi).minimize(
+                self.test_cost, var_list=shi_vars)
+
+        # pdb.set_trace()
+        self.acc = tf.metrics.accuracy(
+            labels=tf.argmax(self.labels_y, 1),
+            predictions=tf.argmax(self.test_inference_net.layer2_out, 1))
 
         return
 

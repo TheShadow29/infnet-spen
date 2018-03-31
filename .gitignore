@@ -2,3 +2,4 @@ data/figment
 data/
 *__pycache__/
 *.pyc
+experiments/

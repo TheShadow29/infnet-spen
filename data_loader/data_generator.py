@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import _pickle as cPickle
+import pdb
 
 
 def load_embeddings(config):
@@ -44,8 +45,11 @@ class FigmentDataGenerator(object):
         # Load the current split
         with open(os.path.join(data_dir, '%s.pickle' % self.split), 'rb') as f:
             self.data = cPickle.load(f)
-        self.data_x = np.array(instance['entity_id'] for instance in self.data)
-        self.data_y = np.array(instance['type_vector'] for instance in self.data)
+        # pdb.set_trace()
+        self.data_x = np.array([instance['entity_id'] for instance in self.data])
+        # self.data_emb = load_embeddings(self.config)
+        # self.data_x = np.array(self.data_emb[instance['entity_id']] for instance in self.data)
+        self.data_y = np.array([instance['type_vector'] for instance in self.data])
         self.len = len(self.data)
 
     def next_batch(self, batch_size):
@@ -53,11 +57,15 @@ class FigmentDataGenerator(object):
         # This will return a smaller size if not sufficient
         # The user must pad the batch in an external API
         # Or write a TF module with variable batch size
+        # try:
         batch_x = self.data_x[bp:bp + batch_size]
+        # except Exception as e:
+        # pdb.set_trace()
         batch_y = self.data_y[bp:bp + batch_size]
 
         self.batch_pointer += batch_size
-        if self.batch_pointer >= len(batch_x):
+        # if self.batch_pointer >= len(batch_x):
+        if self.batch_pointer >= len(self.data_x):
             self.batch_pointer = 0
 
         yield batch_x, batch_y

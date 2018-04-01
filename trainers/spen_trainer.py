@@ -1,8 +1,10 @@
 from base.base_train import BaseTrain
 from tqdm import tqdm
 import numpy as np
-import pdb
 import tensorflow as tf
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class SpenTrainer(BaseTrain):
@@ -12,20 +14,17 @@ class SpenTrainer(BaseTrain):
     def train_epoch(self):
         loop = tqdm(range(self.config.train.num_iter_per_epoch))
         losses = []
-        accs = []
         for it in loop:
-            loss, acc = self.train_step()
+            loss = self.train_step()
             losses.append(loss)
-            accs.append(acc)
         loss = np.mean(losses)
-        acc = np.mean(accs)
 
         cur_it = self.model.global_step_tensor.eval(self.sess)
         summaries_dict = {}
         summaries_dict['loss'] = loss
-        summaries_dict['acc'] = acc
-        # self.logger.info("Loss %f, Acc %f", loss, acc)
-        print('Loss', loss, 'Acc', acc)
+
+        logger.info("Loss function :- %.4f", loss)
+
         self.logger.summarize(cur_it, summaries_dict=summaries_dict)
         self.model.save(self.sess)
 
@@ -37,22 +36,10 @@ class SpenTrainer(BaseTrain):
         #                               self.model.cost,
         #                               self.model.accuracy],
         #                              feed_dict=feed_dict)
-        _, _, _, loss = self.sess.run([self.model.phi_opt, self.model.theta_opt,
-                                       self.model.shi_opt,
-                                       self.model.cost],
-                                      feed_dict=feed_dict)
+        _, loss = self.sess.run([self.model.phi_opt, self.model.base_objective], feed_dict=feed_dict)
+        _, loss = self.sess.run([self.model.theta_opt, self.model.base_objective], feed_dict=feed_dict)
 
-        # _, acc = self.sess.run([self.model.shi_opt, self.model.test_cost], feed_dict=feed_dict)
-        # try:
-        acc = self.sess.run([self.model.acc], feed_dict=feed_dict)
-        # assert acc >= 0
-        # except Exception as e:
-        # pdb.set_trace()
-        # acc = self.train_inf_step()
-        # pdb.set_trace()
-        # assert (loss <= 0).all()
-
-        return loss, acc
+        return loss
 
     # def train_inf_step(self):
     #     tot_x, tot_y = self.data.data_x, self.data.data_y

@@ -26,8 +26,6 @@ def main():
     sess = tf.Session(config=sconfig)
     # create instance of the model you want
     model = SPEN(config)
-    # # load model if exist
-    # model.load(sess)
 
     # This is outside data generator since it's used to explicitly init TF model
     embeddings = load_embeddings(config)
@@ -43,10 +41,6 @@ def main():
     logger.info("dev set loaded :- %d instances", dev_data.len)
     test_data = FigmentDataGenerator(config, split='Etest')
     logger.info("test set loaded :- %d instances", test_data.len)
-
-    # Updating configuration file
-
-    # sys.exit(0)
 
     # create tensorboard logger
     tf_logger = TFLogger(sess, config)

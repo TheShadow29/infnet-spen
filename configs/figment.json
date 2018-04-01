@@ -21,6 +21,7 @@
 		"lr_theta": 0.001,
 		"lr_shi": 0.001,
 		"lamb_reg_phi": 0.1,
-		"lamb_reg_theta": 0.1
+		"lamb_reg_theta": 0.1,
+		"lamb_reg_entropy": 0.1
 	}
 }

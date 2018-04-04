@@ -1,7 +1,6 @@
 import numpy as np
 import os
 import _pickle as cPickle
-import pdb
 
 
 def load_embeddings(config):

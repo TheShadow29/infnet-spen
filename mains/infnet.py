@@ -7,8 +7,6 @@ from utils.dirs import create_dirs
 from utils.logger import get_logger, TFLogger
 from utils.utils import get_args
 
-import sys
-
 
 logger = get_logger(__name__)
 
@@ -24,11 +22,19 @@ def main():
     sconfig.gpu_options.allow_growth = True
 
     sess = tf.Session(config=sconfig)
-    # create instance of the model you want
-    model = SPEN(config)
+
+    with tf.variable_scope("model"):
+        model = SPEN(config)
+    with tf.variable_scope("model", reuse=True):
+        model_eval = SPEN(config)
 
     # This is outside data generator since it's used to explicitly init TF model
     embeddings = load_embeddings(config)
+    # Push these embeddings into TensorFlow graph
+    feed_dict = {
+        model.embeddings_placeholder.name: embeddings
+    }
+    sess.run(model.load_embeddings, feed_dict=feed_dict)
     logger.info("embeddings loaded :- %d items", len(embeddings))
 
     # Load the two vocabulary files for types and entities
@@ -45,9 +51,9 @@ def main():
     # create tensorboard logger
     tf_logger = TFLogger(sess, config)
     # create trainer and path all previous components to it
-    trainer = SpenTrainer(sess, model, train_data, config, tf_logger)
-
-    # here you train your model
+    trainer = SpenTrainer(
+        sess, model, model_eval, [train_data, dev_data, test_data], config, tf_logger
+    )
     trainer.train()
 
 

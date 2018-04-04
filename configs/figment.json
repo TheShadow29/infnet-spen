@@ -11,9 +11,8 @@
 	"max_to_keep": 5,
 	"num_epochs": 20,
 	"train":{
-		"num_iter_per_epoch": 20,
 		"learning_rate": 0.001,
-		"batch_size": 4,
+		"batch_size": 32,
 		"state_size": [784],
 		"max_to_keep": 5,
 		"hidden_units": 200,

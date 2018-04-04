@@ -19,8 +19,6 @@ class SPEN(BaseModel):
         config = self.config
         batch_size = config.train.batch_size
 
-        self.is_training = tf.placeholder(tf.bool)
-
         self.input_x = tf.placeholder(
             tf.int64, shape=[batch_size]
         )
@@ -56,8 +54,8 @@ class SPEN(BaseModel):
             lamb_reg_phi * self.reg_losses_phi - \
             lamb_reg_entropy * self.reg_losses_entropy
 
-        phi_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="inference_net")
-        theta_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="energy_net")
+        phi_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="model/inference_net")
+        theta_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="model/energy_net")
 
         self.phi_opt = tf.train.AdamOptimizer(config.train.lr_phi).minimize(
             -1 * self.gain_phi, var_list=phi_vars
@@ -67,7 +65,7 @@ class SPEN(BaseModel):
         )
 
         self.test_cost = tf.reduce_sum(self.energy_net3.energy_out)
-        shi_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="test_inference_net")
+        shi_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="model/test_inference_net")
         self.shi_opt = tf.train.AdamOptimizer(config.train.lr_shi).minimize(
             self.test_cost, var_list=shi_vars
         )
@@ -128,10 +126,10 @@ class SPEN(BaseModel):
 
     def regularize(self):
         self.reg_losses_phi = tf.add_n(
-            tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope="inference_net")
+            tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope="model/inference_net")
         )
         self.reg_losses_theta = tf.add_n(
-            tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope="energy_net")
+            tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope="model/energy_net")
         )
         # Entropy Regularization, Section 5 of Tu & Gimpel 2018
         prob = self.inference_net.layer2_out

@@ -64,18 +64,12 @@ class SPEN(BaseModel):
             self.cost_theta, var_list=theta_vars
         )
 
-        self.test_cost = tf.reduce_sum(self.energy_net3.energy_out)
-        shi_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="model/test_inference_net")
+        # This optimizer are called after training theta
+        self.test_cost = tf.reduce_sum(self.energy_net2.energy_out)
+        shi_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="model/inference_net")
         self.shi_opt = tf.train.AdamOptimizer(config.train.lr_shi).minimize(
             self.test_cost, var_list=shi_vars
         )
-
-        self.acc = tf.metrics.accuracy(
-            labels=tf.argmax(self.labels_y, 1),
-            predictions=tf.argmax(self.test_inference_net.layer2_out, 1)
-        )
-
-        return
 
     def create_embeddings_graph(self):
         config = self.config
@@ -100,17 +94,12 @@ class SPEN(BaseModel):
 
         # This is the cost-augmented inference network
         # This is used for GAN-style training
+        # After training the energy network, we train the psi parameters
         with tf.variable_scope("inference_net", regularizer=regularizer):
             self.inference_net = InferenceNet(
                 config, self.feature_input
             )
-        # This is the actual inference network
-        # Corresponds to psi parameters in Tu & Gimpel 2018
-        with tf.variable_scope("test_inference_net", regularizer=regularizer):
-            self.test_inference_net = InferenceNet(
-                config, self.feature_input
-            )
-
+        # Energy network definitions
         with tf.variable_scope("energy_net", regularizer=regularizer):
             self.energy_net1 = EnergyNet(
                 config, self.feature_input, self.labels_y
@@ -118,10 +107,6 @@ class SPEN(BaseModel):
         with tf.variable_scope("energy_net", reuse=True, regularizer=regularizer):
             self.energy_net2 = EnergyNet(
                 config, self.feature_input, self.inference_net.layer2_out
-            )
-        with tf.variable_scope("energy_net", reuse=True, regularizer=regularizer):
-            self.energy_net3 = EnergyNet(
-                config, self.feature_input, self.test_inference_net.layer2_out
             )
 
     def regularize(self):

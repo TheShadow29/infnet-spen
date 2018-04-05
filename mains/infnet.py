@@ -30,11 +30,6 @@ def main():
 
     # This is outside data generator since it's used to explicitly init TF model
     embeddings = load_embeddings(config)
-    # Push these embeddings into TensorFlow graph
-    feed_dict = {
-        model.embeddings_placeholder.name: embeddings
-    }
-    sess.run(model.load_embeddings, feed_dict=feed_dict)
     logger.info("embeddings loaded :- %d items", len(embeddings))
 
     # Load the two vocabulary files for types and entities
@@ -52,7 +47,8 @@ def main():
     tf_logger = TFLogger(sess, config)
     # create trainer and path all previous components to it
     trainer = SpenTrainer(
-        sess, model, model_eval, [train_data, dev_data, test_data], config, tf_logger
+        sess, model, model_eval, [train_data, dev_data, test_data],
+        embeddings, config, tf_logger
     )
     trainer.train()
 

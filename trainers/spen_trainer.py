@@ -8,8 +8,14 @@ logger = get_logger(__name__)
 
 
 class SpenTrainer(BaseTrain):
-    def __init__(self, sess, model, model_eval, data, config, logger):
+    def __init__(self, sess, model, model_eval, data, embeddings, config, logger):
         super().__init__(sess, model, model_eval, data, config, logger)
+        # Push these embeddings into TensorFlow graph
+        feed_dict = {
+            model.embeddings_placeholder.name: embeddings
+        }
+        sess.run(model.load_embeddings, feed_dict=feed_dict)
+        # Housekeeping tasks for training
         self.train_data, self.dev_data, self.test_data = data
         self.num_batches = int(
             np.ceil(self.train_data.len / self.config.train.batch_size)
@@ -28,17 +34,13 @@ class SpenTrainer(BaseTrain):
         batch_x, batch_y = next(self.train_data.next_batch(batch_size))
         if len(batch_x) < batch_size:
             batch_x, batch_y = self.pad_batch(batch_x, batch_y)
-
+        # Alternately training the phi and theta variables
         feed_dict = {
             self.model.input_x: batch_x,
             self.model.labels_y: batch_y
         }
-        _, loss = self.sess.run(
-            [self.model.phi_opt, self.model.base_objective], feed_dict=feed_dict
-        )
-        _, loss = self.sess.run(
-            [self.model.theta_opt, self.model.base_objective], feed_dict=feed_dict
-        )
+        self.sess.run(self.model.phi_opt, feed_dict=feed_dict)
+        self.sess.run(self.model.theta_opt, feed_dict=feed_dict)
 
     def pad_batch(self, batch_x, batch_y):
         batch_size = self.config.train.batch_size
@@ -54,12 +56,12 @@ class SpenTrainer(BaseTrain):
     def evaluate(self):
         batch_size = self.config.train.batch_size
         # finding performance on both dev and test dataset
-        for corpus in [self.dev_data, self.test_data]:
-            total_loss = 0.0
+        for corpus in [self.train_data, self.dev_data, self.test_data]:
+            total_energy = 0.0
             num_batches = int(np.ceil(corpus.len / batch_size))
             for batch in range(num_batches):
                 batch_x, batch_y = next(self.train_data.next_batch(batch_size))
-                total_instances = len(batch_x)
+                total = len(batch_x)
                 if len(batch_x) < batch_size:
                     batch_x, batch_y = self.pad_batch(batch_x, batch_y)
 
@@ -68,6 +70,6 @@ class SpenTrainer(BaseTrain):
                     self.model.input_x: batch_x,
                     self.model.labels_y: batch_y
                 }
-                loss = self.sess.run(self.model.base_objective, feed_dict=feed_dict)
-                total_loss += loss
-            logger.info("Loss on %s corpus is %.4f", corpus.split, total_loss)
+                energy = self.sess.run(self.model.energy_net1.energy_out, feed_dict=feed_dict)
+                total_energy += np.sum(energy[:total])
+            logger.info("Ground truth energy on %s corpus is %.4f", corpus.split, total_energy)

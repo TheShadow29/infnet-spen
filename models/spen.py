@@ -120,7 +120,7 @@ class SPEN(BaseModel):
         prob = self.inference_net.layer2_out
         not_prob = 1 - self.inference_net.layer2_out
         self.reg_losses_entropy = tf.reduce_sum(
-            -1 * prob * tf.log(prob) - not_prob * tf.log(not_prob)
+            -1 * prob * tf.log(prob + 1e-10) - not_prob * tf.log(not_prob + 1e-10)
         )
 
     def init_saver(self):

@@ -117,10 +117,11 @@ class SPEN(BaseModel):
             tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope="model/energy_net")
         )
         # Entropy Regularization, Section 5 of Tu & Gimpel 2018
-        prob = self.inference_net.layer2_out
-        not_prob = 1 - self.inference_net.layer2_out
+        epsilon = 1e-10
+        prob = tf.clip_by_value(self.inference_net.layer2_out, epsilon, 1 - epsilon)
+        not_prob = tf.clip_by_value(1 - self.inference_net.layer2_out, epsilon, 1 - epsilon)
         self.reg_losses_entropy = tf.reduce_sum(
-            -1 * prob * tf.log(prob + 1e-10) - not_prob * tf.log(not_prob + 1e-10)
+            -1 * prob * tf.log(prob) - not_prob * tf.log(not_prob)
         )
 
     def init_saver(self):

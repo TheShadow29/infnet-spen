@@ -80,9 +80,9 @@ class SPEN(BaseModel):
         )
         # Entropy Regularization, Section 5 of Tu & Gimpel 2018
         # We add the epsilon constant for numerical stability
-        epsilon = 1e-10
+        epsilon = 1e-7
         prob = tf.clip_by_value(self.inference_net.layer2_out, epsilon, 1 - epsilon)
-        not_prob = tf.clip_by_value(1 - self.inference_net.layer2_out, epsilon, 1 - epsilon)
+        not_prob = 1 - prob
         self.reg_losses_entropy = tf.reduce_sum(
             -1 * prob * tf.log(prob) - not_prob * tf.log(not_prob)
         )

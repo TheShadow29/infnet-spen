@@ -73,7 +73,6 @@ class SpenTrainer(BaseTrain):
                 }
                 outputs = [self.model.energy_net1.energy_out, self.model.diff]
                 energy, diff = self.sess.run(outputs, feed_dict=feed_dict)
-                import pdb; pdb.set_trace()
                 total_energy += np.sum(energy[:total])
                 total_correct += total - np.count_nonzero(diff[:total])
             logger.info("Ground truth energy on %s corpus is %.4f", corpus.split, total_energy)

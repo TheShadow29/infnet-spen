@@ -33,7 +33,7 @@ class SpenTrainer(BaseTrain):
                 self.step_infnet_energy()
         self.evaluate()
         self.model.save(self.sess)
-        logger.info("Completed epoch %d / %d", cur_epoch + 1, self.config.num_epochs)
+        logger.info("Completed epoch %d / %d", cur_epoch + 1, self.config.num_epochs[stage])
 
     def get_feed_dict(self):
         batch_size = self.config.train.batch_size

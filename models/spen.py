@@ -95,7 +95,7 @@ class SPEN(BaseModel):
         batch_size = config.train.batch_size
 
         abs_difference = tf.reduce_sum(
-            tf.abs(self.labels_y - self.inference_net.layer2_out), axis=1
+            tf.square(self.labels_y - self.inference_net.layer2_out), axis=1
         )
         max_difference = tf.maximum(
             abs_difference - self.energy_net2.energy_out + self.energy_net1.energy_out,

@@ -18,7 +18,7 @@ class BaseTrain:
     def train(self, stage=0):
         logger.info("training on stage %d", stage)
         for cur_epoch in range(self.model.cur_epoch_tensor[stage].eval(self.sess),
-                               self.config.num_epochs, 1):
+                               self.config.num_epochs[stage], 1):
             self.train_epoch(cur_epoch, stage)
             self.sess.run(self.model.increment_cur_epoch_tensor[stage])
 

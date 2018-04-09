@@ -50,7 +50,12 @@ def main():
         sess, model, model_eval, [train_data, dev_data, test_data],
         embeddings, config, tf_logger
     )
-    trainer.train()
+    # Inference Net pre-training
+    trainer.train(stage=0)
+    # Energy Network Minimization
+    trainer.train(stage=1)
+    # Inference Network post-training
+    trainer.train(stage=2)
 
 
 if __name__ == '__main__':

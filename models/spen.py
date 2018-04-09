@@ -27,9 +27,12 @@ class SPEN(BaseModel):
         )
 
         self.create_embeddings_graph()
+        # Inference Network and Energy Network
         self.build_subnets()
         self.regularize()
         self.create_losses()
+        # Inference Network energy minimization & Inference Network pre-training
+        self.infnet_losses()
         self.evaluate()
 
     def create_embeddings_graph(self):
@@ -124,11 +127,22 @@ class SPEN(BaseModel):
             self.cost_theta, var_list=theta_vars
         )
 
-        # This optimizer are called after training theta
-        self.test_cost = tf.reduce_sum(self.energy_net2.energy_out)
-        shi_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="model/inference_net")
-        self.shi_opt = tf.train.AdamOptimizer(config.train.lr_shi).minimize(
-            self.test_cost, var_list=shi_vars
+    def infnet_losses(self):
+        infnet_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="model/inference_net")
+
+        # Minimizing a cross entropy loss for independent classes
+        epsilon = 1e-7
+        prob = tf.clip_by_value(self.inference_net.layer2_out, epsilon, 1 - epsilon)
+        not_prob = 1 - prob
+        self.infnet_ce_loss = (1 - self.labels_y) * tf.log(not_prob) + self.labels_y * tf.log(prob)
+        self.infnet_ce_opt = tf.train.AdamOptimizer(self.config.train.lr_psi).minimize(
+            self.infnet_ce_loss, var_list=infnet_vars
+        )
+
+        # Psi parameter optimization, Equation (5) in Tu & Gimpel, 2018
+        self.energy_psi = tf.reduce_sum(self.energy_net2.energy_out)
+        self.psi_opt = tf.train.AdamOptimizer(self.config.train.lr_psi).minimize(
+            self.energy_psi, var_list=infnet_vars
         )
 
     def evaluate(self):

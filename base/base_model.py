@@ -1,5 +1,4 @@
 import tensorflow as tf
-import os
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -28,9 +27,12 @@ class BaseModel:
     # just inialize a tensorflow variable to use it as epoch counter
     def init_cur_epoch(self):
         with tf.variable_scope('cur_epoch'):
-            self.cur_epoch_tensor = tf.Variable(0, trainable=False, name='cur_epoch')
-            self.increment_cur_epoch_tensor = tf.assign(self.cur_epoch_tensor,
-                                                        self.cur_epoch_tensor + 1)
+            self.cur_epoch_tensor = \
+                [tf.Variable(0, trainable=False, name='cur_epoch_%d' % i) for i in range(3)]
+            self.increment_cur_epoch_tensor = [
+                tf.assign(self.cur_epoch_tensor[i], self.cur_epoch_tensor[i] + 1)
+                for i in range(3)
+            ]
 
     # just inialize a tensorflow variable to use it as global step counter
     def init_global_step(self):

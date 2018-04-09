@@ -1,7 +1,6 @@
 from base.base_train import BaseTrain
 from tqdm import tqdm
 import numpy as np
-import tensorflow as tf
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -21,26 +20,43 @@ class SpenTrainer(BaseTrain):
             np.ceil(self.train_data.len / self.config.train.batch_size)
         )
 
-    def train_epoch(self, cur_epoch):
+    def train_epoch(self, cur_epoch, stage=0):
         for batch in tqdm(range(self.num_batches)):
-            self.train_step()
+            if stage == 0:
+                # Inference Net pre-training
+                self.step_infnet_classifier()
+            elif stage == 1:
+                # Energy Network Minimization
+                self.step_energy_net()
+            else:
+                # Inference Network post-training
+                self.step_infnet_energy()
+        self.evaluate()
         self.model.save(self.sess)
         logger.info("Completed epoch %d / %d", cur_epoch + 1, self.config.num_epochs)
-        self.evaluate()
 
-    def train_step(self):
+    def get_feed_dict(self):
         batch_size = self.config.train.batch_size
 
         batch_x, batch_y = next(self.train_data.next_batch(batch_size))
         if len(batch_x) < batch_size:
             batch_x, batch_y = self.pad_batch(batch_x, batch_y)
-        # Alternately training the phi and theta variables
         feed_dict = {
             self.model.input_x: batch_x,
             self.model.labels_y: batch_y
         }
+        return feed_dict
+
+    def step_infnet_classifier(self):
+        self.sess.run(self.model.infnet_ce_opt, feed_dict=self.get_feed_dict())
+
+    def step_energy_net(self):
+        feed_dict = self.get_feed_dict()
         self.sess.run(self.model.phi_opt, feed_dict=feed_dict)
         self.sess.run(self.model.theta_opt, feed_dict=feed_dict)
+
+    def step_infnet_energy(self):
+        self.sess.run(self.model.psi_opt, feed_dict=self.get_feed_dict())
 
     def pad_batch(self, batch_x, batch_y):
         batch_size = self.config.train.batch_size

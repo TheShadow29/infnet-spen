@@ -1,4 +1,7 @@
 import tensorflow as tf
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class BaseTrain:
@@ -12,11 +15,12 @@ class BaseTrain:
         self.init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         self.sess.run(self.init)
 
-    def train(self):
-        for cur_epoch in range(self.model.cur_epoch_tensor.eval(self.sess),
+    def train(self, stage=0):
+        logger.info("training on stage %d", stage)
+        for cur_epoch in range(self.model.cur_epoch_tensor[stage].eval(self.sess),
                                self.config.num_epochs, 1):
-            self.train_epoch(cur_epoch)
-            self.sess.run(self.model.increment_cur_epoch_tensor)
+            self.train_epoch(cur_epoch, stage)
+            self.sess.run(self.model.increment_cur_epoch_tensor[stage])
 
     def train_epoch(self):
         """

@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import _pickle as cPickle
+import pdb
 
 
 def load_embeddings(config):
@@ -59,5 +60,14 @@ class FigmentDataGenerator(object):
         self.batch_pointer += batch_size
         if self.batch_pointer >= len(self.data_x):
             self.batch_pointer = 0
-
         yield batch_x, batch_y
+
+    def get_num_zero_vec(self):
+        num = 0
+        tot_num = 0
+        for dat in self.data_y:
+            assert len(dat.shape) == 1
+            if np.sum(dat) <= 0:
+                num += 1
+            tot_num += 1
+        return num, tot_num

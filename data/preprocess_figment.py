@@ -1,12 +1,13 @@
 import _pickle as cPickle
 import numpy as np
 import os
-
+import pdb
+import json
 np.random.seed(0)
 
 EMBEDDING_SIZE = 200
 EMBEDDINGS = 1169307
-
+DONT_WRITE = True
 # Preprocessing embeddings file
 embeddings = np.zeros((EMBEDDINGS, EMBEDDING_SIZE))
 entities = []
@@ -31,14 +32,25 @@ dataset_names = ['Etrain', 'Edev', 'Etest']
 entities_needed = set()
 datasets = {name: [] for name in dataset_names}
 for d in dataset_names:
-    with open(os.path.join('data/figment', d), 'r') as f:
-        for line in f:
-            tokens = line.split()
-            datasets[d].append({
-                'entity': tokens[0],
-                'types': tokens[1:-1]   # removing last token since it's not a tag
-            })
-            entities_needed.add(tokens[0])
+    if 'Etest' == d:
+        with open(os.path.join('data/figment', d), 'r') as f:
+            for line in f:
+                tokens = line.split()
+                datasets[d].append({
+                    'entity': tokens[0],
+                    'types': tokens[1:-1]   # removing last token since it's not a tag
+                })
+                entities_needed.add(tokens[0])
+    else:
+        with open(os.path.join('data/figment', d), 'r') as f:
+            for line in f:
+                tokens = line.split()
+                datasets[d].append({
+                    'entity': tokens[0],
+                    'types': tokens[1:]   # removing last token since it's not a tag
+                })
+                entities_needed.add(tokens[0])
+
 reduced_entities = list(entities_needed)
 
 reduced_entity_vocab = {t: i for i, t in enumerate(reduced_entities)}
@@ -54,15 +66,23 @@ for i, entity in enumerate(reduced_entities):
 
 # Storing the reduced vocab and embeddings
 np.save('data/figment/reduced_embeddings.npy', reduced_embeddings)
-with open('data/figment/entities', 'w') as f:
-    f.write('\n'.join(reduced_entities))
+if not DONT_WRITE:
+    with open('data/figment/entities', 'w') as f:
+        f.write('\n'.join(reduced_entities))
 
 # Storing preprocessed pickle versions of dataset
+with open('data/figment/red_map.txt', 'w') as g:
+            g.write(json.dumps(reduced_entity_vocab))
+
 for name, dataset in datasets.items():
     for instance in dataset:
+        # pdb.set_trace()
         instance['entity_id'] = reduced_entity_vocab[instance['entity']]
         type_ids = [types_vocab[x] for x in instance['types']]
         instance['type_vector'] = np.zeros(len(types))
         instance['type_vector'][type_ids] = 1
-    with open('data/figment/%s.pickle' % name, 'wb') as f:
-        cPickle.dump(dataset, f)
+    if not DONT_WRITE:
+        with open('data/figment/%s.pickle' % name, 'wb') as f:
+            cPickle.dump(dataset, f)
+    else:
+        print('DONT_WRITE is set to True')

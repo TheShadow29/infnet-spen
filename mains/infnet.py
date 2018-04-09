@@ -6,6 +6,7 @@ from utils.config import process_config
 from utils.dirs import create_dirs
 from utils.logger import get_logger, TFLogger
 from utils.utils import get_args
+import pdb
 
 
 logger = get_logger(__name__)
@@ -42,6 +43,10 @@ def main():
     logger.info("dev set loaded :- %d instances", dev_data.len)
     test_data = FigmentDataGenerator(config, split='Etest')
     logger.info("test set loaded :- %d instances", test_data.len)
+
+    print(train_data.get_num_zero_vec())
+    print(dev_data.get_num_zero_vec())
+    print(test_data.get_num_zero_vec())
 
     # create tensorboard logger
     tf_logger = TFLogger(sess, config)

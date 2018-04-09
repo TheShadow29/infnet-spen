@@ -134,7 +134,7 @@ class SPEN(BaseModel):
         epsilon = 1e-7
         prob = tf.clip_by_value(self.inference_net.layer2_out, epsilon, 1 - epsilon)
         not_prob = 1 - prob
-        self.infnet_ce_loss = (1 - self.labels_y) * tf.log(not_prob) + self.labels_y * tf.log(prob)
+        self.infnet_ce_loss = -1 * (1 - self.labels_y) * tf.log(not_prob) - self.labels_y * tf.log(prob)
         self.infnet_ce_opt = tf.train.AdamOptimizer(self.config.train.lr_psi).minimize(
             self.infnet_ce_loss, var_list=infnet_vars
         )

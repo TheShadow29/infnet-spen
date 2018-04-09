@@ -2,7 +2,6 @@ from base.base_train import BaseTrain
 from tqdm import tqdm
 import numpy as np
 from utils.logger import get_logger
-import pdb
 
 logger = get_logger(__name__)
 
@@ -88,13 +87,11 @@ class SpenTrainer(BaseTrain):
                     self.model.input_x: batch_x,
                     self.model.labels_y: batch_y
                 }
-                outputs = [self.model.energy_net1.energy_out, self.model.diff, self.model.outputs, self.model.labels_y, self.model.feature_input]
-                energy, diff, outs, labels_y, feature_input = self.sess.run(outputs, feed_dict=feed_dict)
+                outputs = [self.model.energy_net1.energy_out, self.model.diff]
+                energy, diff = self.sess.run(outputs, feed_dict=feed_dict)
                 total_energy += np.sum(energy[:total])
                 total_correct += total - np.count_nonzero(diff[:total])
-                # if (diff == 0).any():
-                #     print(diff)
-                #     pdb.set_trace()
+
             logger.info("Ground truth energy on %s corpus is %.4f", corpus.split, total_energy)
             logger.info(
                 "Accuracy of inference network is %d / %d = %.4f",

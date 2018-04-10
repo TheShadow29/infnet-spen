@@ -22,6 +22,6 @@
 		"lamb_reg_phi": 0.01,
 		"lamb_reg_theta": 100,
 		"lamb_reg_entropy": 1,
-		"lamb_pretrain_bias": 1
+		"lamb_pretrain_bias": 10
 	}
 }

@@ -50,6 +50,10 @@ class SpenTrainer(BaseTrain):
     def step_infnet_classifier(self):
         self.sess.run(self.model.infnet_ce_opt, feed_dict=self.get_feed_dict())
 
+    def copy_infnet(self):
+        logger.info("Copying trained inference net weights")
+        self.sess.run(self.model.copy_infnet_ops)
+
     def step_energy_net(self):
         feed_dict = self.get_feed_dict()
         self.sess.run(self.model.phi_opt, feed_dict=feed_dict)

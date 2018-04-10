@@ -52,6 +52,8 @@ def main():
     )
     # Inference Net pre-training
     trainer.train(stage=0)
+    # This is needed to keep a copy of the pre-trained infnet
+    trainer.copy_infnet()
     # Energy Network Minimization
     trainer.train(stage=1)
     # Inference Network post-training

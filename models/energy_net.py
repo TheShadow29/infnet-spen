@@ -40,10 +40,10 @@ class EnergyNet(object):
         )
 
         # Equation 2, Tu & Gimpel 2018
-        # Hard-coding tanh non-linearity for now
+        # Hard-coding ReLU non-linearity for now
         label_temp1 = tf.matmul(self.input_y, label_matrix)
         self.label_out = tf.reduce_sum(
-            tf.multiply(tf.tanh(label_temp1), label_vector),
+            tf.multiply(tf.nn.softplus(label_temp1), label_vector),
             axis=1
         )
 

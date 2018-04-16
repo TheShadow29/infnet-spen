@@ -12,6 +12,7 @@
 	"num_epochs": [7, 20, 20],
 	"train": {
 		"learning_rate": 0.001,
+		"diff_type": "perceptron",
 		"batch_size": 32,
 		"state_size": [784],
 		"max_to_keep": 5,
@@ -20,8 +21,8 @@
 		"lr_theta": 0.001,
 		"lr_psi": 0.001,
 		"lamb_reg_phi": 0.01,
-		"lamb_reg_theta": 100,
+		"lamb_reg_theta": 0.1,
 		"lamb_reg_entropy": 1,
-		"lamb_pretrain_bias": 10
+		"lamb_pretrain_bias": 100
 	}
 }

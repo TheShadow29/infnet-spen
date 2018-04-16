@@ -138,9 +138,15 @@ class SPEN(BaseModel):
         config = self.config
         batch_size = config.train.batch_size
 
-        abs_difference = tf.reduce_sum(
-            tf.square(self.labels_y - self.inference_net.layer2_out), axis=1
-        )
+        if config.train.diff_type == 'sq_diff':
+            abs_difference = tf.reduce_sum(
+                tf.square(self.labels_y - self.inference_net.layer2_out), axis=1
+            )
+        elif config.train.diff_type == 'perceptron':
+            abs_difference = 0
+        elif config.train.diff_type == 'slack':
+            abs_difference = 1
+        # Applying the hinge to the loss function
         max_difference = tf.maximum(
             abs_difference - self.energy_net2.energy_out + self.energy_net1.energy_out,
             tf.constant([0] * batch_size, dtype=tf.float32)

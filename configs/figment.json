@@ -9,7 +9,7 @@
 	"entities_vocab_size": 201933,
 	"embeddings_tune": false,
 	"max_to_keep": 5,
-	"num_epochs": [7, 20, 20],
+	"num_epochs": [5, 5, 5],
 	"train": {
 		"learning_rate": 0.001,
 		"diff_type": "perceptron",

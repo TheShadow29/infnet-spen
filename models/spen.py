@@ -139,16 +139,16 @@ class SPEN(BaseModel):
         batch_size = config.train.batch_size
 
         if config.train.diff_type == 'sq_diff':
-            abs_difference = tf.reduce_sum(
+            self.abs_difference = tf.reduce_sum(
                 tf.square(self.labels_y - self.inference_net.layer2_out), axis=1
             )
         elif config.train.diff_type == 'perceptron':
-            abs_difference = 0
+            self.abs_difference = tf.constant([0] * batch_size, dtype=tf.float32)
         elif config.train.diff_type == 'slack':
-            abs_difference = 1
+            self.abs_difference = tf.constant([1] * batch_size, dtype=tf.float32)
         # Applying the hinge to the loss function
         max_difference = tf.maximum(
-            abs_difference - self.energy_net2.energy_out + self.energy_net1.energy_out,
+            self.abs_difference - self.energy_net2.energy_out + self.energy_net1.energy_out,
             tf.constant([0] * batch_size, dtype=tf.float32)
         )
         self.base_objective = tf.reduce_sum(max_difference)
@@ -173,7 +173,7 @@ class SPEN(BaseModel):
         theta_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=ENERGY_NET_SCOPE)
 
         self.phi_opt = tf.train.AdamOptimizer(config.train.lr_phi).minimize(
-            -1 * self.gain_phi, var_list=phi_vars
+            -1 * self.gain_phi, global_step=self.global_step_tensor, var_list=phi_vars
         )
         self.theta_opt = tf.train.AdamOptimizer(config.train.lr_theta).minimize(
             self.cost_theta, var_list=theta_vars

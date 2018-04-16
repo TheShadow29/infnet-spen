@@ -27,7 +27,7 @@ class TFLogger():
         self.test_summary_writer = tf.summary.FileWriter(os.path.join(self.config.summary_dir, "test"))
 
     # it can summarize scalers and images.
-    def summarize(self, step, summerizer="train", scope="", summaries_dict=None):
+    def summarize(self, step, summerizer="train", scope="logger", summaries_dict=None):
         """
         :param step: the step of the summary
         :param summerizer: use the train summary writer or the test one

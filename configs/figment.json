@@ -3,6 +3,7 @@
 	"data":{
 		"data_dir": "data/figment/"
 	},
+	"tensorboard": false,
 	"embedding_size": 200,
 	"embedding_tune": false,
 	"type_vocab_size": 102,
@@ -11,7 +12,6 @@
 	"max_to_keep": 5,
 	"num_epochs": [5, 5, 5],
 	"train": {
-		"learning_rate": 0.001,
 		"diff_type": "perceptron",
 		"batch_size": 32,
 		"state_size": [784],
@@ -20,9 +20,9 @@
 		"lr_phi": 0.001,
 		"lr_theta": 0.001,
 		"lr_psi": 0.001,
-		"lamb_reg_phi": 0.01,
+		"lamb_reg_phi": 1,
 		"lamb_reg_theta": 0.1,
-		"lamb_reg_entropy": 1,
+		"lamb_reg_entropy": 10,
 		"lamb_pretrain_bias": 100
 	}
 }

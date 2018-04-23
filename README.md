@@ -8,3 +8,8 @@ Course Project for CS726 Advanced Machine Learning
 
 ## Running
 1. `python -m mains.infnet --config configs/figment.json`
+
+## Tuning
+1. `python generate_configs.py`
+2. `mkdir logs`
+3. `python run.py`

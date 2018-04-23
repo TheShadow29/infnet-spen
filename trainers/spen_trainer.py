@@ -58,17 +58,18 @@ class SpenTrainer(BaseTrain):
         feed_dict = self.get_feed_dict()
         self.sess.run(self.model.phi_opt, feed_dict=feed_dict)
         self.sess.run(self.model.theta_opt, feed_dict=feed_dict)
-        self.summaries = {
-            'base_objective': self.model.base_objective,
-            'reg_losses_theta': self.model.reg_losses_theta,
-            'reg_losses_phi': self.model.reg_losses_phi,
-            'reg_losses_entropy': self.model.reg_losses_entropy,
-            'pre_train_bias': self.model.pre_train_bias
-        }
-        self.tf_logger.summarize(
-            self.model.global_step_tensor.eval(self.sess),
-            summaries_dict=self.sess.run(self.summaries, feed_dict)
-        )
+        if self.config.tensorboard is True:
+            self.summaries = {
+                'base_objective': self.model.base_objective,
+                'reg_losses_theta': self.model.reg_losses_theta,
+                'reg_losses_phi': self.model.reg_losses_phi,
+                'reg_losses_entropy': self.model.reg_losses_entropy,
+                'pre_train_bias': self.model.pre_train_bias
+            }
+            self.tf_logger.summarize(
+                self.model.global_step_tensor.eval(self.sess),
+                summaries_dict=self.sess.run(self.summaries, feed_dict)
+            )
 
     def step_infnet_energy(self):
         self.sess.run(self.model.psi_opt, feed_dict=self.get_feed_dict())

@@ -73,9 +73,9 @@ class SPEN(BaseModel):
         # This is the cost-augmented inference network
         # This is used for GAN-style training
         # After training the energy network, we train the psi parameters
-        with tf.variable_scope(BASE_INFNET_SCOPE, regularizer=regularizer):
+        with tf.variable_scope(BASE_INFNET_SCOPE):
             self.inference_net = InferenceNet(
-                config, self.feature_input
+                config, self.feature_input, regularizer=regularizer
             )
         # Energy network definitions
         with tf.variable_scope(BASE_ENERGY_NET_SCOPE, regularizer=regularizer):
@@ -93,9 +93,9 @@ class SPEN(BaseModel):
         # These variables will store values of a preprocessed inference net
         # This allows us to keep a copy of the pre-trained network
         # Which can be used as a regularization term Section 5, Tu & Gimpel 2018
-        with tf.variable_scope(BASE_COPY_INFNET_SCOPE, regularizer=regularizer):
+        with tf.variable_scope(BASE_COPY_INFNET_SCOPE):
             self.copy_inference_net = InferenceNet(
-                config, self.feature_input
+                config, self.feature_input, regularizer=regularizer
             )
         copy_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=COPY_INFNET_SCOPE)
         infnet_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=INFNET_SCOPE)
@@ -146,6 +146,7 @@ class SPEN(BaseModel):
             self.abs_difference = tf.constant([0] * batch_size, dtype=tf.float32)
         elif config.train.diff_type == 'slack':
             self.abs_difference = tf.constant([1] * batch_size, dtype=tf.float32)
+
         # Applying the hinge to the loss function
         max_difference = tf.maximum(
             self.abs_difference - self.energy_net2.energy_out + self.energy_net1.energy_out,

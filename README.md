@@ -13,3 +13,4 @@ Course Project for CS726 Advanced Machine Learning
 1. `python generate_configs.py`
 2. `mkdir logs`
 3. `python run.py`
+4. `python analysis.py`

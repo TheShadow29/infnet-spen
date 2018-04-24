@@ -5,9 +5,8 @@ logger = get_logger(__name__)
 
 
 class BaseTrain:
-    def __init__(self, sess, model, model_eval, data, config, tf_logger):
+    def __init__(self, sess, model, data, config, tf_logger):
         self.model = model
-        self.model_eval = model_eval
         self.tf_logger = tf_logger
         self.config = config
         self.sess = sess

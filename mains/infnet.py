@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 from data_loader.data_generator import FigmentDataGenerator, load_embeddings, load_vocab
 from models.spen import SPEN
 from trainers.spen_trainer import SpenTrainer
@@ -13,6 +14,11 @@ logger = get_logger(__name__)
 
 def main():
     args = get_args()
+
+    # Set random seeds
+    np.random.seed(args.seed)
+    tf.set_random_seed(args.seed)
+
     # config is of type Munch
     config = process_config(args.config)
 
@@ -25,8 +31,6 @@ def main():
 
     with tf.variable_scope("model"):
         model = SPEN(config)
-    with tf.variable_scope("model", reuse=True):
-        model_eval = SPEN(config)
 
     # This is outside data generator since it's used to explicitly init TF model
     embeddings = load_embeddings(config)
@@ -47,8 +51,7 @@ def main():
     tf_logger = TFLogger(sess, config)
     # create trainer and path all previous components to it
     trainer = SpenTrainer(
-        sess, model, model_eval, [train_data, dev_data, test_data],
-        embeddings, config, tf_logger
+        sess, model, [train_data, dev_data, test_data], embeddings, config, tf_logger
     )
     # Inference Net pre-training
     trainer.train(stage=0)

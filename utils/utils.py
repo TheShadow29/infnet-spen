@@ -7,6 +7,12 @@ def get_args():
         '-c', '--config',
         metavar='C',
         default='None',
-        help='The Configuration file')
+        help='The Configuration file'
+    )
+    argparser.add_argument(
+        '-s', '--seed',
+        default=1,
+        help='Random seed'
+    )
     args = argparser.parse_args()
     return args

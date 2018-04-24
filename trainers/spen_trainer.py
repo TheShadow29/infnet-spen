@@ -7,8 +7,8 @@ logger = get_logger(__name__)
 
 
 class SpenTrainer(BaseTrain):
-    def __init__(self, sess, model, model_eval, data, embeddings, config, tf_logger):
-        super().__init__(sess, model, model_eval, data, config, tf_logger)
+    def __init__(self, sess, model, data, embeddings, config, tf_logger):
+        super().__init__(sess, model, data, config, tf_logger)
         # Push these embeddings into TensorFlow graph
         feed_dict = {
             model.embeddings_placeholder.name: embeddings

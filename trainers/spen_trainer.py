@@ -1,6 +1,7 @@
 from base.base_train import BaseTrain
 from tqdm import tqdm
 import numpy as np
+import sys
 from utils.logger import get_logger
 
 
@@ -23,15 +24,23 @@ class SpenTrainer(BaseTrain):
 
     def train_epoch(self, cur_epoch, stage=0):
         for batch in tqdm(range(self.num_batches)):
+            self.batch_num = batch
             if stage == 0:
                 # Inference Net pre-training
                 self.step_infnet_classifier()
             elif stage == 1:
                 # Energy Network Minimization
-                self.step_energy_net()
+                if self.config.ssvm.enable is True:
+                    self.step_ssvm()
+                else:
+                    self.step_adversarial()
             else:
                 # Inference Network post-training
                 self.step_infnet_energy()
+        # Verify that the data is completed before moving to evaluation
+        if self.train_data.batch_pointer != 0:
+            logger.info("corpus train not completed")
+            sys.exit(0)
         self.evaluate()
         self.model.save(self.sess)
         logger.info("Completed epoch %d / %d", cur_epoch + 1, self.config.num_epochs[stage])
@@ -55,7 +64,7 @@ class SpenTrainer(BaseTrain):
         logger.info("Copying trained inference net weights")
         self.sess.run(self.model.copy_infnet_ops)
 
-    def step_energy_net(self):
+    def step_adversarial(self):
         feed_dict = self.get_feed_dict()
         self.sess.run(self.model.phi_opt, feed_dict=feed_dict)
         self.sess.run(self.model.theta_opt, feed_dict=feed_dict)
@@ -70,6 +79,28 @@ class SpenTrainer(BaseTrain):
                 'reg_losses_phi': self.model.reg_losses_phi,
                 'reg_losses_entropy': self.model.reg_losses_entropy,
                 'pre_train_bias': self.model.pre_train_bias
+            }
+            self.tf_logger.summarize(
+                self.model.global_step_tensor.eval(self.sess),
+                summaries_dict=self.sess.run(self.summaries, feed_dict)
+            )
+
+    def step_ssvm(self):
+        feed_dict = self.get_feed_dict()
+        # begin by initializing self.ssvm_y_pred to random value
+        self.sess.run(self.model.ssvm_y_pred.initializer)
+        # inner optimization loop over y
+        for i in range(self.config.ssvm.steps):
+            self.sess.run(self.model.ssvm_y_opt, feed_dict=feed_dict)
+        # with max-margin y, run a theta update
+        self.sess.run(self.model.ssvm_theta_opt, feed_dict=feed_dict)
+        if self.config.tensorboard is True:
+            self.summaries = {
+                'base_objective': self.model.ssvm_base_objective,
+                'energy_y_pred': self.model.red_energy_y_pred,
+                'energy_ground_truth': self.model.red_energy_gt_out,
+                'ssvm_difference': self.model.ssvm_red_difference,
+                'reg_losses_theta': self.model.reg_losses_theta
             }
             self.tf_logger.summarize(
                 self.model.global_step_tensor.eval(self.sess),
@@ -98,7 +129,7 @@ class SpenTrainer(BaseTrain):
             total_correct = 0
             num_batches = int(np.ceil(corpus.len / batch_size))
             for batch in range(num_batches):
-                batch_x, batch_y = next(self.train_data.next_batch(batch_size))
+                batch_x, batch_y = next(corpus.next_batch(batch_size))
                 total = len(batch_x)
                 if len(batch_x) < batch_size:
                     batch_x, batch_y = self.pad_batch(batch_x, batch_y)
@@ -108,10 +139,25 @@ class SpenTrainer(BaseTrain):
                     self.model.input_x: batch_x,
                     self.model.labels_y: batch_y
                 }
-                outputs = [self.model.energy_net1.energy_out, self.model.diff]
+
+                if self.config.ssvm.eval is True:
+                    # Use the ssvm inference objective
+                    # begin by initializing self.ssvm_y_pred to random value
+                    self.sess.run(self.model.ssvm_y_pred.initializer)
+                    # inner optimization loop over y
+                    for i in range(self.config.ssvm.steps):
+                        self.sess.run(self.model.ssvm_infer_y_opt, feed_dict=feed_dict)
+                    outputs = [self.model.energy_net1.energy_out, self.model.ssvm_diff]
+                else:
+                    outputs = [self.model.energy_net1.energy_out, self.model.diff]
+
                 energy, diff = self.sess.run(outputs, feed_dict=feed_dict)
                 total_energy += np.sum(energy[:total])
                 total_correct += total - np.count_nonzero(diff[:total])
+            # Verify that the data is completed
+            if corpus.batch_pointer != 0:
+                logger.info("corpus %s not completed" % corpus.split)
+                sys.exit(0)
 
             logger.info("Ground truth energy on %s corpus is %.4f", corpus.split, total_energy)
             logger.info(

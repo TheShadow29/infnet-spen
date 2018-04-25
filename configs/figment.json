@@ -1,6 +1,6 @@
 
 {
-    "exp_name": "perceptron",
+    "exp_name": "ssvm_sq_diff",
     "data":{
         "data_dir": "data/figment/"
     },
@@ -11,9 +11,9 @@
     "entities_vocab_size": 201933,
     "embeddings_tune": false,
     "max_to_keep": 5,
-    "num_epochs": [5, 5, 5],
+    "num_epochs": [2, 2, 5],
     "train": {
-        "diff_type": "perceptron",
+        "diff_type": "sq_diff",
         "batch_size": 32,
         "state_size": [784],
         "max_to_keep": 5,
@@ -25,5 +25,11 @@
         "lamb_reg_theta": 10,
         "lamb_reg_entropy": 0.01,
         "lamb_pretrain_bias": 1
+    },
+    "ssvm": {
+        "enable": false,
+        "steps": 10,
+        "eval": false,
+        "lr_inference": 0.1
     }
 }

@@ -3,6 +3,7 @@ from tqdm import tqdm
 import numpy as np
 from utils.logger import get_logger
 
+
 logger = get_logger(__name__)
 
 
@@ -61,6 +62,10 @@ class SpenTrainer(BaseTrain):
         if self.config.tensorboard is True:
             self.summaries = {
                 'base_objective': self.model.base_objective,
+                'base_obj_real': self.model.base_objective_real,
+                'energy_inf_net': self.model.red_energy_inf_out,
+                'energy_ground_truth': self.model.red_energy_gt_out,
+                'margin_loss': self.model.red_difference,
                 'reg_losses_theta': self.model.reg_losses_theta,
                 'reg_losses_phi': self.model.reg_losses_phi,
                 'reg_losses_entropy': self.model.reg_losses_entropy,

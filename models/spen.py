@@ -161,10 +161,15 @@ class SPEN(BaseModel):
                 self.difference = tf.constant([1] * batch_size, dtype=tf.float32)
 
             # Applying the hinge to the loss function
+            self.red_difference = tf.reduce_sum(self.difference)
+            self.red_energy_gt_out = tf.reduce_sum(self.energy_net1.energy_out)
+            self.red_energy_inf_out = tf.reduce_sum(self.energy_net2.energy_out)
             max_difference = tf.maximum(
                 self.difference - self.energy_net2.energy_out + self.energy_net1.energy_out,
                 tf.constant([0] * batch_size, dtype=tf.float32)
             )
+            self.base_objective_real = tf.reduce_sum(self.difference - self.energy_net2.energy_out
+                                                     + self.energy_net1.energy_out)
             self.base_objective = tf.reduce_sum(max_difference)
 
         with tf.name_scope('theta_cost'):

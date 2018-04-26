@@ -1,12 +1,12 @@
 {
-    "exp_name": "figment_sq_diff",
+    "exp_name": "bibtex_sq_diff",
     "data":{
-        "dataset": "figment",
-        "data_dir": "data/figment/",
-        "splits": ["Etrain", "Edev", "Etest"],
-        "embeddings": true,
-        "vocab": true,
-        "data_generator": "FigmentDataGenerator"
+        "dataset": "bibtex",
+        "data_dir": "data/bibtex/",
+        "splits": ["train", "dev", "test"],
+        "embeddings": false,
+        "vocab": false,
+        "data_generator": "BibtexDataGenerator"
     },
     "tensorboard": true,
     "feature_size": 200,
@@ -21,7 +21,7 @@
         "batch_size": 32,
         "state_size": [784],
         "max_to_keep": 5,
-        "hidden_units": 200,
+        "hidden_units": 150,
         "lr_phi": 0.001,
         "lr_theta": 0.001,
         "lr_psi": 0.001,

@@ -11,11 +11,14 @@ logger = get_logger(__name__)
 class SpenTrainer(BaseTrain):
     def __init__(self, sess, model, data, embeddings, config, tf_logger):
         super().__init__(sess, model, data, config, tf_logger)
-        # Push these embeddings into TensorFlow graph
-        feed_dict = {
-            model.embeddings_placeholder.name: embeddings
-        }
-        sess.run(model.load_embeddings, feed_dict=feed_dict)
+
+        if self.config.data.embeddings is True:
+            # Push these embeddings into TensorFlow graph
+            feed_dict = {
+                model.embeddings_placeholder.name: embeddings
+            }
+            sess.run(model.load_embeddings, feed_dict=feed_dict)
+
         # Housekeeping tasks for training
         self.train_data, self.dev_data, self.test_data = data
         self.num_batches = int(

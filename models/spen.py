@@ -4,6 +4,7 @@ import sys
 from base.base_model import BaseModel
 from models.energy_net import EnergyNet
 from models.inference_net import InferenceNet
+from models.feature_net import FeatureNet
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -40,7 +41,10 @@ class SPEN(BaseModel):
             tf.float32, shape=[batch_size, config.type_vocab_size], name='labels_y'
         )
 
-        self.create_embeddings_graph()
+        if config.data.embeddings is True:
+            self.build_embeddings_graph()
+        else:
+            self.build_feature_net()
         # Inference Network and Energy Network
         self.build_subnets()
         self.copy_infnet()
@@ -53,10 +57,10 @@ class SPEN(BaseModel):
         self.infnet_losses()
         self.evaluate()
 
-    def create_embeddings_graph(self):
+    def build_embeddings_graph(self):
         config = self.config
         vocab_size = config.entities_vocab_size
-        e_size = config.embedding_size
+        e_size = config.feature_size
         # Logic for embeddings
         with tf.name_scope('embeddings'):
             self.embeddings_placeholder = tf.placeholder(
@@ -71,6 +75,9 @@ class SPEN(BaseModel):
 
             # Used in the static / non-static configurations
             self.load_embeddings = self.embeddings.assign(self.embeddings_placeholder)
+
+    def build_feature_net(self):
+        self.feature_input = FeatureNet(self.config, self.input_x)
 
     def build_subnets(self):
         config = self.config
@@ -303,13 +310,14 @@ class SPEN(BaseModel):
                 tf.reduce_sum(tf.abs(self.outputs - self.labels_y), axis=1),
                 dtype=tf.int64
             )
-            # SSVM based inference
-            # Please optimize over ssvm_y_pred before using these nodes
-            self.ssvm_outputs = tf.round(self.ssvm_y_pred_clip)
-            self.ssvm_diff = tf.cast(
-                tf.reduce_sum(tf.abs(self.ssvm_outputs - self.labels_y), axis=1),
-                dtype=tf.int64
-            )
+            if self.config.ssvm.enable is True:
+                # SSVM based inference
+                # Please optimize over ssvm_y_pred before using these nodes
+                self.ssvm_outputs = tf.round(self.ssvm_y_pred_clip)
+                self.ssvm_diff = tf.cast(
+                    tf.reduce_sum(tf.abs(self.ssvm_outputs - self.labels_y), axis=1),
+                    dtype=tf.int64
+                )
             self.results = self.config.train.batch_size - tf.count_nonzero(self.diff)
 
     def init_saver(self):

@@ -61,3 +61,36 @@ class FigmentDataGenerator(object):
             self.batch_pointer = 0
 
         yield batch_x, batch_y
+
+
+class BibtexDataGenerator(object):
+    def __init__(self, config, split):
+        self.config = config
+        self.split = split
+        # Load vocab explicitly when needed
+        self.load_data()
+        # Reset batch pointer to zero
+        self.batch_pointer = 0
+
+    def load_data(self):
+        data_dir = self.config.data.data_dir
+        # Load the current split
+        with open(os.path.join(data_dir, '%s.pickle' % self.split), 'rb') as f:
+            self.data = cPickle.load(f)
+        self.data_x = np.array([instance['feats'] for instance in self.data])
+        self.data_y = np.array([instance['types'] for instance in self.data])
+        self.len = len(self.data)
+
+    def next_batch(self, batch_size):
+        bp = self.batch_pointer
+        # This will return a smaller size if not sufficient
+        # The user must pad the batch in an external API
+        # Or write a TF module with variable batch size
+        batch_x = self.data_x[bp:bp + batch_size]
+        batch_y = self.data_y[bp:bp + batch_size]
+
+        self.batch_pointer += batch_size
+        if self.batch_pointer >= len(self.data_x):
+            self.batch_pointer = 0
+
+        yield batch_x, batch_y

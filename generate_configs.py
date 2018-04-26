@@ -3,20 +3,25 @@ import itertools
 BASE_CONFIG = \
     """
 {{
-    "exp_name": "figment",
+    "exp_name": "figment_sq_diff",
     "data":{{
-        "data_dir": "data/figment/"
+        "dataset": "figment",
+        "data_dir": "data/figment/",
+        "splits": ["Etrain", "Edev", "Etest"],
+        "embeddings": true,
+        "vocab": true,
+        "data_generator": "FigmentDataGenerator"
     }},
-    "tensorboard": false,
-    "embedding_size": 200,
-    "embedding_tune": false,
+    "tensorboard": true,
+    "feature_size": 200,
+    "label_measurements": 15,
     "type_vocab_size": 102,
     "entities_vocab_size": 201933,
     "embeddings_tune": false,
     "max_to_keep": 5,
-    "num_epochs": [2, 2, 2],
+    "num_epochs": [2, 2, 5],
     "train": {{
-        "diff_type": "perceptron",
+        "diff_type": "sq_diff",
         "batch_size": 32,
         "state_size": [784],
         "max_to_keep": 5,

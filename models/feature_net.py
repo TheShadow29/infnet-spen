@@ -8,7 +8,8 @@ class FeatureNet(object):
         """
         self.input_x = input_x
         self.config = config
-        self.batch_size, self.embedding_size = input_x.get_shape()
+        self.batch_size, self.finp_size = input_x.get_shape()
+        self.output_size = config.train.hidden_units
         self.type_vocab_size = config.type_vocab_size
         self.build_model()
 
@@ -19,10 +20,12 @@ class FeatureNet(object):
             activation=tf.nn.relu,
             name='layer1'
         )
-
-        self.layer2_out = tf.layers.dense(
-            inputs=self.layer1_out,
-            units=self.config.train.hidden_units,
-            activation=tf.nn.relu,
-            name='layer2'
-        )
+        # SPEN2016 suggests using only one Layer
+        # Outpyt layer should have less number of parmaters
+        # than output labels
+        # self.layer2_out = tf.layers.dense(
+        #     inputs=self.layer1_out,
+        #     units=self.config.train.hidden_units,
+        #     activation=tf.nn.relu,
+        #     name='layer2'
+        # )

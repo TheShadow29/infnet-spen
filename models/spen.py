@@ -34,9 +34,15 @@ class SPEN(BaseModel):
         config = self.config
         batch_size = config.train.batch_size
 
-        self.input_x = tf.placeholder(
-            tf.int64, shape=[batch_size], name='input_x'
-        )
+        if config.data.embeddings is True:
+            self.input_x = tf.placeholder(
+                tf.int64, shape=[batch_size], name='input_x'
+            )
+        else:
+            self.input_x = tf.placeholder(
+                tf.float32, shape=[batch_size, config.data.finput_dim], name='input_x'
+            )
+
         self.labels_y = tf.placeholder(
             tf.float32, shape=[batch_size, config.type_vocab_size], name='labels_y'
         )
@@ -77,7 +83,8 @@ class SPEN(BaseModel):
             self.load_embeddings = self.embeddings.assign(self.embeddings_placeholder)
 
     def build_feature_net(self):
-        self.feature_input = FeatureNet(self.config, self.input_x)
+        self.feature_network = FeatureNet(self.config, self.input_x)
+        self.feature_input = self.feature_network.layer1_out
 
     def build_subnets(self):
         config = self.config

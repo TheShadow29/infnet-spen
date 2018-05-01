@@ -116,11 +116,18 @@ class SpenTrainer(BaseTrain):
     def pad_batch(self, batch_x, batch_y):
         batch_size = self.config.train.batch_size
         total = len(batch_x)
-
-        extension_x = np.tile(batch_x[-1], batch_size - total)
-        new_batch_x = np.concatenate((batch_x, extension_x), axis=0)
-        extension_y = np.tile(batch_y[-1], (batch_size - total, 1))
-        new_batch_y = np.concatenate((batch_y, extension_y), axis=0)
+        if self.config.data.embeddings is False:
+            inpx_dim = batch_x[-1].shape[0]
+            inpy_dim = batch_y[-1].shape[0]
+            extension_x = np.broadcast_to(batch_x[-1], (batch_size - total, inpx_dim))
+            new_batch_x = np.concatenate((batch_x, extension_x), axis=0)
+            extension_y = np.broadcast_to(batch_y[-1], (batch_size - total, inpy_dim))
+            new_batch_y = np.concatenate((batch_y, extension_y), axis=0)
+        else:
+            extension_x = np.tile(batch_x[-1], batch_size - total)
+            new_batch_x = np.concatenate((batch_x, extension_x), axis=0)
+            extension_y = np.tile(batch_y[-1], (batch_size - total, 1))
+            new_batch_y = np.concatenate((batch_y, extension_y), axis=0)
 
         return new_batch_x, new_batch_y
 

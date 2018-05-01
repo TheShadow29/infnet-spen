@@ -1,8 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import data_loader.data_generator as data_generator
-
-from data_generator import load_embeddings, load_vocab
+from data_loader.data_generator import load_embeddings, load_vocab
 from models.spen import SPEN
 from trainers.spen_trainer import SpenTrainer
 from utils.config import process_config
@@ -48,11 +47,12 @@ def main():
 
     generator = eval("data_generator.%s" % config.data.data_generator)
 
-    train_data = generator(config, split='Etrain')
+    dsplits = config.data.splits
+    train_data = generator(config, split=dsplits[0])
     logger.info("training set loaded :- %d instances", train_data.len)
-    dev_data = generator(config, split='Edev')
+    dev_data = generator(config, split=dsplits[1])
     logger.info("dev set loaded :- %d instances", dev_data.len)
-    test_data = generator(config, split='Etest')
+    test_data = generator(config, split=dsplits[2])
     logger.info("test set loaded :- %d instances", test_data.len)
 
     # create tensorboard logger

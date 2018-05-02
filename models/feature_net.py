@@ -20,12 +20,9 @@ class FeatureNet(object):
             activation=tf.nn.relu,
             name='layer1'
         )
-        # SPEN2016 suggests using only one Layer
-        # Outpyt layer should have less number of parmaters
-        # than output labels
-        # self.layer2_out = tf.layers.dense(
-        #     inputs=self.layer1_out,
-        #     units=self.config.train.hidden_units,
-        #     activation=tf.nn.relu,
-        #     name='layer2'
-        # )
+        self.layer2_out = tf.layers.dense(
+            inputs=self.layer1_out,
+            units=self.config.train.hidden_units,
+            activation=tf.nn.relu,
+            name='layer2'
+        )

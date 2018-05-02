@@ -22,7 +22,15 @@ class InferenceNet(object):
 
         self.layer2_out = tf.layers.dense(
             inputs=self.layer1_out,
-            units=self.type_vocab_size,
-            activation=tf.sigmoid,
+            units=self.config.train.hidden_units,
+            activation=tf.nn.relu,
             name='layer2'
         )
+
+        self.layer3_out = tf.layers.dense(
+            inputs=self.layer2_out,
+            units=self.type_vocab_size,
+            activation=None,
+            name='layer3'
+        )
+        self.probs = tf.sigmoid(self.layer3_out)

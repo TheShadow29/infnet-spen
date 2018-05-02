@@ -1,5 +1,4 @@
 import tensorflow as tf
-import sys
 
 from base.base_model import BaseModel
 from models.energy_net import EnergyNet
@@ -9,10 +8,12 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+BASE_FEAT_SCOPE = "feature_net"
 BASE_ENERGY_NET_SCOPE = "energy_net"
 BASE_INFNET_SCOPE = "inference_net"
 BASE_COPY_INFNET_SCOPE = "copy_inference_net"
 
+FEAT_SCOPE = "model/%s" % BASE_FEAT_SCOPE
 ENERGY_NET_SCOPE = "model/%s" % BASE_ENERGY_NET_SCOPE
 INFNET_SCOPE = "model/%s" % BASE_INFNET_SCOPE
 COPY_INFNET_SCOPE = "model/%s" % BASE_COPY_INFNET_SCOPE
@@ -38,23 +39,23 @@ class SPEN(BaseModel):
             self.input_x = tf.placeholder(
                 tf.int64, shape=[batch_size], name='input_x'
             )
+            self.build_embeddings_graph()
         else:
             self.input_x = tf.placeholder(
                 tf.float32, shape=[batch_size, config.data.finput_dim], name='input_x'
             )
+            self.input_x_vector = tf.identity(self.input_x)
 
         self.labels_y = tf.placeholder(
             tf.float32, shape=[batch_size, config.type_vocab_size], name='labels_y'
         )
 
-        if config.data.embeddings is True:
-            self.build_embeddings_graph()
-        else:
-            self.build_feature_net()
+        self.build_feature_net()
         # Inference Network and Energy Network
         self.build_subnets()
-        self.copy_infnet()
         self.regularize()
+        self.pretrain_feats()
+        self.copy_infnet()
         if self.config.ssvm.enable is True:
             self.ssvm_losses()
         else:
@@ -77,14 +78,17 @@ class SPEN(BaseModel):
                 initializer=random_uniform(0.25),
                 trainable=config.embeddings_tune
             )
-            self.feature_input = tf.nn.embedding_lookup(self.embeddings, self.input_x)
+            self.input_x_vector = tf.nn.embedding_lookup(self.embeddings, self.input_x)
 
             # Used in the static / non-static configurations
             self.load_embeddings = self.embeddings.assign(self.embeddings_placeholder)
 
     def build_feature_net(self):
-        self.feature_network = FeatureNet(self.config, self.input_x)
-        self.feature_input = self.feature_network.layer1_out
+        regularizer = tf.contrib.layers.l2_regularizer(1.0)
+
+        with tf.variable_scope(BASE_FEAT_SCOPE, regularizer=regularizer):
+            self.feature_network = FeatureNet(self.config, self.input_x_vector)
+            self.feature_input = self.feature_network.layer2_out
 
     def build_subnets(self):
         config = self.config
@@ -95,19 +99,99 @@ class SPEN(BaseModel):
         # After training the energy network, we train the psi parameters
         with tf.variable_scope(BASE_INFNET_SCOPE, regularizer=regularizer):
             self.inference_net = InferenceNet(
-                config, self.feature_input
+                config, self.input_x_vector
             )
         # Energy network definitions
         with tf.variable_scope(BASE_ENERGY_NET_SCOPE, regularizer=regularizer):
             self.energy_net1 = EnergyNet(
                 config, self.feature_input, self.labels_y
             )
+            # DEBUG variable
             self.red_energy_gt_out = tf.reduce_sum(self.energy_net1.energy_out)
         with tf.variable_scope(BASE_ENERGY_NET_SCOPE, reuse=True, regularizer=regularizer):
             self.energy_net2 = EnergyNet(
-                config, self.feature_input, self.inference_net.layer2_out
+                config, self.feature_input, self.inference_net.probs
             )
+            # DEBUG variable
             self.red_energy_inf_out = tf.reduce_sum(self.energy_net2.energy_out)
+
+    def regularize(self):
+        with tf.name_scope('regularize'):
+            self.reg_losses_feats = tf.add_n(
+                tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=FEAT_SCOPE)
+            )
+            self.reg_losses_phi = tf.add_n(
+                tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=INFNET_SCOPE)
+            )
+            self.reg_losses_theta = tf.add_n(
+                tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=ENERGY_NET_SCOPE)
+            )
+            # Entropy Regularization, Section 5 of Tu & Gimpel 2018
+            # Assuming tf.nn.sigmoid_cross_entropy_with_logits
+            self.reg_losses_entropy = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(
+                labels=self.inference_net.probs,
+                logits=self.inference_net.layer3_out
+            ))
+
+    def pretrain_feats(self):
+        lamb_reg_feats = self.config.train.lamb_reg_feats
+
+        with tf.name_scope('pretrain_feats'):
+            # We take a negative sign here since we want "probabilities", not "energy"
+            logits = -1 * self.energy_net1.negative_logits
+            # Pre-training objective
+            self.feats_ce_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(
+                labels=self.labels_y,
+                logits=logits
+            ))
+            self.feats_opt = self.feats_ce_loss + lamb_reg_feats * self.reg_losses_feats
+            feat_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=FEAT_SCOPE)
+            # The energy network local function is the final layer of the feed-forward network
+            var_list = [self.energy_net1.linear_wt] + feat_vars
+            self.feat_ce_opt = tf.train.AdamOptimizer(self.config.train.lr_feat).minimize(
+                self.feats_opt, var_list=var_list
+            )
+
+    def copy_infnet(self):
+        config = self.config
+        regularizer = tf.contrib.layers.l2_regularizer(1.0)
+        # These variables will store values of a preprocessed inference net
+        # This allows us to keep a copy of the pre-trained network
+        # Which can be used as a regularization term Section 5, Tu & Gimpel 2018
+        with tf.variable_scope(BASE_COPY_INFNET_SCOPE, regularizer=regularizer):
+            self.copy_inference_net = InferenceNet(
+                config, self.input_x_vector
+            )
+        copy_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=COPY_INFNET_SCOPE)
+        # We remove the last bias feature since we don't have a pre-trained version of it
+        copy_vars = copy_vars[:-1]
+
+        infnet_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=INFNET_SCOPE)
+        # We remove the last bias feature since we don't have a pre-trained version of it
+        infnet_vars = infnet_vars[:-1]
+
+        pretrain_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=FEAT_SCOPE)
+        # We take a negative sign here since we want "probabilities", not "energy"
+        pretrain_vars.append(-1 * self.energy_net1.linear_wt)
+        # Create assignment operators to initialize pretrained_inference_net
+        with tf.name_scope('copy_infnet'):
+            # This op will both copy pretrained network into infnet
+            # as well as keep a copy against the pre-trained network
+            self.copy_infnet_ops = [
+                copy_var.assign(pretrain_var)
+                for copy_var, pretrain_var in zip(copy_vars, pretrain_vars)
+            ]
+            # copying into main infnet
+            self.copy_infnet_ops.extend([
+                infnet_var.assign(pretrain_var)
+                for infnet_var, pretrain_var in zip(infnet_vars, pretrain_vars)
+            ])
+            # The last loss term in Section 5, Tu & Gimpel 2018
+            self.var_diff = [
+                tf.reduce_sum(tf.square(copy_var - infnet_var))
+                for copy_var, infnet_var in zip(copy_vars, infnet_vars)
+            ]
+            self.pre_train_bias = tf.add_n(self.var_diff)
 
     def ssvm_losses(self):
         config = self.config
@@ -179,54 +263,6 @@ class SPEN(BaseModel):
             self.ssvm_cost_theta, global_step=self.global_step_tensor, var_list=theta_vars
         )
 
-    def copy_infnet(self):
-        config = self.config
-        regularizer = tf.contrib.layers.l2_regularizer(1.0)
-        # These variables will store values of a preprocessed inference net
-        # This allows us to keep a copy of the pre-trained network
-        # Which can be used as a regularization term Section 5, Tu & Gimpel 2018
-        with tf.variable_scope(BASE_COPY_INFNET_SCOPE, regularizer=regularizer):
-            self.copy_inference_net = InferenceNet(
-                config, self.feature_input
-            )
-        copy_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=COPY_INFNET_SCOPE)
-        infnet_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=INFNET_SCOPE)
-        # As a sanity check, ensure that the copy_vars and infnet_vars are in the same order
-        for copy_var, infnet_var in zip(copy_vars, infnet_vars):
-            copy_var_name = copy_var.name[len(COPY_INFNET_SCOPE):]
-            infnet_var_name = infnet_var.name[len(INFNET_SCOPE):]
-            if copy_var_name != infnet_var_name:
-                logger.error("Variable name order mismatch, exiting")
-                sys.exit(0)
-        # Create assignment operators to initialize pre_inference_net
-        with tf.name_scope('copy_infnet'):
-            self.copy_infnet_ops = [
-                copy_var.assign(infnet_var)
-                for copy_var, infnet_var in zip(copy_vars, infnet_vars)
-            ]
-            # The last loss term in Section 5, Tu & Gimpel 2018
-            self.var_diff = [
-                tf.reduce_sum(tf.square(copy_var - infnet_var))
-                for copy_var, infnet_var in zip(copy_vars, infnet_vars)
-            ]
-            self.pre_train_bias = tf.add_n(self.var_diff)
-
-    def regularize(self):
-        with tf.name_scope('regularize'):
-            self.reg_losses_phi = tf.add_n(
-                tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=INFNET_SCOPE)
-            )
-            self.reg_losses_theta = tf.add_n(
-                tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=ENERGY_NET_SCOPE)
-            )
-            # Entropy Regularization, Section 5 of Tu & Gimpel 2018
-            # We add the EPSILON constant for numerical stability
-            prob = tf.clip_by_value(self.inference_net.layer2_out, EPSILON, 1 - EPSILON)
-            not_prob = 1 - prob
-            self.reg_losses_entropy = tf.reduce_sum(
-                -1 * prob * tf.log(prob) - not_prob * tf.log(not_prob)
-            )
-
     def adversarial_losses(self):
         config = self.config
         batch_size = config.train.batch_size
@@ -239,11 +275,11 @@ class SPEN(BaseModel):
         with tf.name_scope('base_objective'):
             if config.train.diff_type == 'sq_diff':
                 self.difference = tf.reduce_sum(
-                    tf.square(self.labels_y - self.inference_net.layer2_out), axis=1
+                    tf.square(self.labels_y - self.inference_net.probs), axis=1
                 )
             elif config.train.diff_type == 'abs_diff':
                 self.difference = tf.reduce_sum(
-                    tf.abs(self.labels_y - self.inference_net.layer2_out), axis=1
+                    tf.abs(self.labels_y - self.inference_net.probs), axis=1
                 )
             elif config.train.diff_type == 'perceptron':
                 self.difference = tf.constant([0] * batch_size, dtype=tf.float32)
@@ -287,21 +323,18 @@ class SPEN(BaseModel):
             )
 
     def infnet_losses(self):
-        with tf.name_scope('infnet_losses'):
-            infnet_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=INFNET_SCOPE)
-            # Minimizing a cross entropy loss for independent classes
-            prob = tf.clip_by_value(self.inference_net.layer2_out, EPSILON, 1 - EPSILON)
-            not_prob = 1 - prob
-            self.infnet_ce_loss = tf.reduce_sum(
-                -1 * (1 - self.labels_y) * tf.log(not_prob) - self.labels_y * tf.log(prob)
-            )
-            self.infnet_ce_opt = tf.train.AdamOptimizer(self.config.train.lr_psi).minimize(
-                self.infnet_ce_loss, var_list=infnet_vars
-            )
+        config = self.config
+
+        infnet_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=INFNET_SCOPE)
+        lamb_reg_phi = config.train.lamb_reg_phi
+        lamb_reg_entropy = config.train.lamb_reg_entropy
 
         with tf.name_scope('psi_cost'):
             # Psi parameter optimization, Equation (5) in Tu & Gimpel, 2018
-            self.energy_psi = tf.reduce_sum(self.energy_net2.energy_out)
+            self.energy_psi = \
+                tf.reduce_sum(self.energy_net2.energy_out) + \
+                lamb_reg_phi * self.reg_losses_phi + \
+                lamb_reg_entropy * self.reg_losses_entropy
 
         with tf.name_scope('psi_opt'):
             self.psi_opt = tf.train.AdamOptimizer(self.config.train.lr_psi).minimize(
@@ -310,11 +343,18 @@ class SPEN(BaseModel):
 
     def evaluate(self):
         with tf.name_scope('evaluate'):
-            self.probabilities = self.inference_net.layer2_out
+            self.pretrain_probs = self.energy_net1.pretrain_probs
+            self.infnet_probs = self.inference_net.probs
+            # pretrained inference
+            self.pretrain_outputs = tf.round(self.pretrain_probs)
+            self.pretrain_diff = tf.cast(
+                tf.reduce_sum(tf.abs(self.pretrain_outputs - self.labels_y), axis=1),
+                dtype=tf.int64
+            )
             # infnet based inference
-            self.outputs = tf.round(self.probabilities)
-            self.diff = tf.cast(
-                tf.reduce_sum(tf.abs(self.outputs - self.labels_y), axis=1),
+            self.infnet_outputs = tf.round(self.infnet_probs)
+            self.infnet_diff = tf.cast(
+                tf.reduce_sum(tf.abs(self.infnet_outputs - self.labels_y), axis=1),
                 dtype=tf.int64
             )
             if self.config.ssvm.enable is True:
@@ -325,7 +365,8 @@ class SPEN(BaseModel):
                     tf.reduce_sum(tf.abs(self.ssvm_outputs - self.labels_y), axis=1),
                     dtype=tf.int64
                 )
-            self.results = self.config.train.batch_size - tf.count_nonzero(self.diff)
+            self.pretrain_results = self.config.train.batch_size - tf.count_nonzero(self.pretrain_diff)
+            self.infnet_results = self.config.train.batch_size - tf.count_nonzero(self.infnet_diff)
 
     def init_saver(self):
         with tf.name_scope('saver'):

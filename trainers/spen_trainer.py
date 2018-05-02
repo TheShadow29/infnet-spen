@@ -30,7 +30,7 @@ class SpenTrainer(BaseTrain):
             self.batch_num = batch
             if stage == 0:
                 # Inference Net pre-training
-                self.step_infnet_classifier()
+                self.step_pretrain()
             elif stage == 1:
                 # Energy Network Minimization
                 if self.config.ssvm.enable is True:
@@ -60,12 +60,13 @@ class SpenTrainer(BaseTrain):
         }
         return feed_dict
 
-    def step_infnet_classifier(self):
-        self.sess.run(self.model.infnet_ce_opt, feed_dict=self.get_feed_dict())
+    def step_pretrain(self):
+        self.sess.run(self.model.feat_ce_opt, feed_dict=self.get_feed_dict())
 
     def copy_infnet(self):
         logger.info("Copying trained inference net weights")
         self.sess.run(self.model.copy_infnet_ops)
+        self.evaluate()
 
     def step_adversarial(self):
         feed_dict = self.get_feed_dict()
@@ -117,17 +118,15 @@ class SpenTrainer(BaseTrain):
         batch_size = self.config.train.batch_size
         total = len(batch_x)
         if self.config.data.embeddings is False:
-            inpx_dim = batch_x[-1].shape[0]
-            inpy_dim = batch_y[-1].shape[0]
-            extension_x = np.broadcast_to(batch_x[-1], (batch_size - total, inpx_dim))
+            # Input is a 2-D array
+            extension_x = np.tile(batch_x[-1], (batch_size - total, 1))
             new_batch_x = np.concatenate((batch_x, extension_x), axis=0)
-            extension_y = np.broadcast_to(batch_y[-1], (batch_size - total, inpy_dim))
-            new_batch_y = np.concatenate((batch_y, extension_y), axis=0)
         else:
+            # Input is a 1-D array
             extension_x = np.tile(batch_x[-1], batch_size - total)
             new_batch_x = np.concatenate((batch_x, extension_x), axis=0)
-            extension_y = np.tile(batch_y[-1], (batch_size - total, 1))
-            new_batch_y = np.concatenate((batch_y, extension_y), axis=0)
+        extension_y = np.tile(batch_y[-1], (batch_size - total, 1))
+        new_batch_y = np.concatenate((batch_y, extension_y), axis=0)
 
         return new_batch_x, new_batch_y
 
@@ -136,7 +135,8 @@ class SpenTrainer(BaseTrain):
         # finding performance on both dev and test dataset
         for corpus in [self.train_data, self.dev_data, self.test_data]:
             total_energy = 0.0
-            total_correct = 0
+            total_pretrain_correct = 0
+            total_infnet_correct = 0
             num_batches = int(np.ceil(corpus.len / batch_size))
             for batch in range(num_batches):
                 batch_x, batch_y = next(corpus.next_batch(batch_size))
@@ -157,13 +157,16 @@ class SpenTrainer(BaseTrain):
                     # inner optimization loop over y
                     for i in range(self.config.ssvm.steps):
                         self.sess.run(self.model.ssvm_infer_y_opt, feed_dict=feed_dict)
-                    outputs = [self.model.energy_net1.energy_out, self.model.ssvm_diff]
+                    outputs = \
+                        [self.model.energy_net1.energy_out, self.model.pretrain_diff, self.model.ssvm_diff]
                 else:
-                    outputs = [self.model.energy_net1.energy_out, self.model.diff]
+                    outputs = \
+                        [self.model.energy_net1.energy_out, self.model.pretrain_diff, self.model.infnet_diff]
 
-                energy, diff = self.sess.run(outputs, feed_dict=feed_dict)
+                energy, pretrain_diff, infnet_diff = self.sess.run(outputs, feed_dict=feed_dict)
                 total_energy += np.sum(energy[:total])
-                total_correct += total - np.count_nonzero(diff[:total])
+                total_pretrain_correct += total - np.count_nonzero(pretrain_diff[:total])
+                total_infnet_correct += total - np.count_nonzero(infnet_diff[:total])
             # Verify that the data is completed
             if corpus.batch_pointer != 0:
                 logger.info("corpus %s not completed" % corpus.split)
@@ -171,6 +174,10 @@ class SpenTrainer(BaseTrain):
 
             logger.info("Ground truth energy on %s corpus is %.4f", corpus.split, total_energy)
             logger.info(
+                "Accuracy of pretrained network is %d / %d = %.4f",
+                total_pretrain_correct, corpus.len, total_pretrain_correct / corpus.len
+            )
+            logger.info(
                 "Accuracy of inference network is %d / %d = %.4f",
-                total_correct, corpus.len, total_correct / corpus.len
+                total_infnet_correct, corpus.len, total_infnet_correct / corpus.len
             )

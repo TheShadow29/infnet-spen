@@ -26,9 +26,11 @@ class EnergyNet(object):
             self.linear_wt = tf.get_variable(
                 "linear_wt", [self.feature_size, self.type_vocab_size]
             )
+            self.negative_logits = tf.matmul(self.input_x, self.linear_wt)
+            self.pretrain_probs = tf.sigmoid(-1 * self.negative_logits)
             # Equation 1, Tu & Gimpel 2018
             self.linear_out = tf.reduce_sum(
-                tf.multiply(tf.matmul(self.input_x, self.linear_wt), self.input_y),
+                tf.multiply(self.negative_logits, self.input_y),
                 axis=1
             )
 

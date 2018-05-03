@@ -343,17 +343,19 @@ class SPEN(BaseModel):
             )
 
     def evaluate(self):
+        threshold = self.config.threshold
+
         with tf.name_scope('evaluate'):
             self.pretrain_probs = self.energy_net1.pretrain_probs
             self.infnet_probs = self.inference_net.probs
             # pretrained inference
-            self.pretrain_outputs = tf.round(self.pretrain_probs)
+            self.pretrain_outputs = tf.round(self.pretrain_probs + 0.5 - threshold)
             self.pretrain_diff = tf.cast(
                 tf.reduce_sum(tf.abs(self.pretrain_outputs - self.labels_y), axis=1),
                 dtype=tf.int64
             )
             # infnet based inference
-            self.infnet_outputs = tf.round(self.infnet_probs)
+            self.infnet_outputs = tf.round(self.infnet_probs + 0.5 - threshold)
             self.infnet_diff = tf.cast(
                 tf.reduce_sum(tf.abs(self.infnet_outputs - self.labels_y), axis=1),
                 dtype=tf.int64
@@ -361,7 +363,7 @@ class SPEN(BaseModel):
             if self.config.ssvm.enable is True:
                 # SSVM based inference
                 # Please optimize over ssvm_y_pred before using these nodes
-                self.ssvm_outputs = tf.round(self.ssvm_y_pred_clip)
+                self.ssvm_outputs = tf.round(self.ssvm_y_pred_clip + 0.5 - threshold)
                 self.ssvm_diff = tf.cast(
                     tf.reduce_sum(tf.abs(self.ssvm_outputs - self.labels_y), axis=1),
                     dtype=tf.int64

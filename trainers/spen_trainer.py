@@ -223,15 +223,22 @@ class SpenTrainer(BaseTrain):
         for i in range(type_vocab_size):
             # Hacky way to allow us to use np.count_nonzero function
             # Labels of type predicted=1, gt=1
-            tp = np.count_nonzero((2 * outputs[:, i] - gt_outputs[:, i]) == 1)
+            tp = np.count_nonzero(
+                np.isclose(2 * outputs[:, i] - gt_outputs[:, i], 1)
+            )
             # Labels of type predicted=1, gt=0
-            fp = np.count_nonzero((outputs[:, i] - gt_outputs[:, i]) == 1)
+            fp = np.count_nonzero(
+                np.isclose(outputs[:, i] - gt_outputs[:, i], 1)
+            )
             # Labels of type predicted=0, gt=1
-            fn = np.count_nonzero((outputs[:, i] - gt_outputs[:, i]) == -1)
+            fn = np.count_nonzero(
+                np.isclose(outputs[:, i] - gt_outputs[:, i], -1)
+            )
             if (tp + fp) != 0:
                 precision_total += float(tp) / (tp + fp)
             if (tp + fn) != 0:
                 recall_total += float(tp) / (tp + fn)
+        # Macro averaging of F1 score
         precision = precision_total / type_vocab_size
         recall = recall_total / type_vocab_size
         f1 = (2 * precision * recall) / (precision + recall)

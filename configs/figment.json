@@ -16,6 +16,7 @@
     "embeddings_tune": false,
     "max_to_keep": 5,
     "num_epochs": [10, 1, 5],
+    "threshold": 0.5,
     "train": {
         "diff_type": "sq_diff",
         "batch_size": 32,

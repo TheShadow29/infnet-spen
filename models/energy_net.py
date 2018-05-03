@@ -27,6 +27,7 @@ class EnergyNet(object):
                 "linear_wt", [self.feature_size, self.type_vocab_size]
             )
             self.negative_logits = tf.matmul(self.input_x, self.linear_wt)
+            # -1 since we wish to maximize probability, but b_i designed to minimize energy
             self.pretrain_probs = tf.sigmoid(-1 * self.negative_logits)
             # Equation 1, Tu & Gimpel 2018
             self.linear_out = tf.reduce_sum(

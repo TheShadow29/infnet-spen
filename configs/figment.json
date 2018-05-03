@@ -43,5 +43,6 @@
         "f1": false,
         "accuracy": true,
         "energy": false
-    }
+    },
+    "f1_score_mode": "examples"
 }

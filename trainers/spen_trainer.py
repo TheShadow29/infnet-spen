@@ -196,8 +196,12 @@ class SpenTrainer(BaseTrain):
                 logger.info("corpus %s not completed" % corpus.split)
                 sys.exit(0)
 
-            pretrain_f1_score = self.f1_score(all_pretrain_outputs, all_gt_outputs)
-            infnet_f1_score = self.f1_score(all_infnet_outputs, all_gt_outputs)
+            if config.f1_score_mode == 'examples':
+                pretrain_f1_score = self.f1_score_examples(all_pretrain_outputs, all_gt_outputs)
+                infnet_f1_score = self.f1_score_examples(all_infnet_outputs, all_gt_outputs)
+            else:
+                pretrain_f1_score = self.f1_score_labels(all_pretrain_outputs, all_gt_outputs)
+                infnet_f1_score = self.f1_score_labels(all_infnet_outputs, all_gt_outputs)
 
             if config.eval_print.energy is True:
                 logger.info("Ground truth energy on %s corpus is %.4f", corpus.split, total_energy)
@@ -216,7 +220,7 @@ class SpenTrainer(BaseTrain):
                     inference_mode, corpus.split, total_infnet_correct / corpus.len, total_infnet_correct, corpus.len
                 )
 
-    def f1_score(self, outputs, gt_outputs):
+    def f1_score_labels(self, outputs, gt_outputs):
         type_vocab_size = self.config.type_vocab_size
         precision_total = 0.0
         recall_total = 0.0
@@ -242,4 +246,35 @@ class SpenTrainer(BaseTrain):
         precision = precision_total / type_vocab_size
         recall = recall_total / type_vocab_size
         f1 = (2 * precision * recall) / (precision + recall)
+        return f1
+
+    def f1_score_examples(self, outputs, gt_outputs):
+        f1_total = 0.0
+        for i in range(len(outputs)):
+            # Hacky way to allow us to use np.count_nonzero function
+            # Labels of type predicted=1, gt=1
+            tp = np.count_nonzero(
+                np.isclose(2 * outputs[i, :] - gt_outputs[i, :], 1)
+            )
+            # Labels of type predicted=1, gt=0
+            fp = np.count_nonzero(
+                np.isclose(outputs[i, :] - gt_outputs[i, :], 1)
+            )
+            # Labels of type predicted=0, gt=1
+            fn = np.count_nonzero(
+                np.isclose(outputs[i, :] - gt_outputs[i, :], -1)
+            )
+            if (tp + fp) != 0:
+                precision = float(tp) / (tp + fp)
+            else:
+                precision = 0
+            if (tp + fn) != 0:
+                recall = float(tp) / (tp + fn)
+            else:
+                recall = 0
+
+            if (precision + recall) != 0:
+                f1_total += (2 * precision * recall) / (precision + recall)
+
+        f1 = f1_total / len(outputs)
         return f1

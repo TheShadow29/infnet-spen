@@ -37,21 +37,19 @@ class EnergyNet(object):
 
         # creating the label energy function
         with tf.name_scope('label_energy'):
-            # C1 in eqn2
-            self.label_matrix = label_matrix = tf.get_variable(
-                "label_matrix", [self.type_vocab_size, label_measurements]
-            )
-            # c2 in eqn2
-            self.label_vector = label_vector = tf.get_variable(
-                "label_vector", [label_measurements]
-            )
-
             # Equation 2, Tu & Gimpel 2018
-            # Hard-coding softplus non-linearity for now
-            label_temp1 = tf.matmul(self.input_y, label_matrix)
-            self.label_out = tf.reduce_sum(
-                tf.multiply(tf.nn.softplus(label_temp1), label_vector),
-                axis=1
+            self.label_energy1 = tf.layers.dense(
+                inputs=self.input_y,
+                units=label_measurements,
+                activation=tf.nn.softplus,
+                name='label_energy1'
             )
+            self.label_energy2 = tf.squeeze(tf.layers.dense(
+                inputs=self.label_energy1,
+                units=1,
+                activation=None,
+                name='label_energy2',
+                use_bias=False
+            ))
 
-        self.energy_out = self.linear_out + self.label_out
+        self.energy_out = self.linear_out + self.label_energy2

@@ -16,7 +16,7 @@
 	"entities_vocab_size": 201933,
 	"embeddings_tune": false,
 	"max_to_keep": 5,
-	"num_epochs": [10, 10, 10],
+	"num_epochs": [10, 3, 10],
 	"train": {
 		"diff_type": "sq_diff",
 		"batch_size": 32,
@@ -34,9 +34,9 @@
 		"lamb_pretrain_bias": 1
 	},
 	"ssvm": {
-		"enable": false,
+		"enable": true,
 		"steps": 10,
-		"eval": false,
+		"eval": true,
 		"lr_inference": 0.1
 	},
 	"eval_print": {

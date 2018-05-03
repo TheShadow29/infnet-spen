@@ -205,6 +205,7 @@ class SPEN(BaseModel):
                 'ssvm_y_pred', [batch_size, config.type_vocab_size],
                 initializer=tf.random_uniform_initializer(0, 1)
             )
+            # This is to enforce projected GD
             self.ssvm_y_pred_clip = tf.clip_by_value(
                 self.ssvm_y_pred, EPSILON, 1 - EPSILON
             )

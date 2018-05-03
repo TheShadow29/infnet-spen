@@ -133,6 +133,8 @@ class SpenTrainer(BaseTrain):
         config = self.config
 
         batch_size = self.config.train.batch_size
+        inference_mode = "ssvm" if config.ssvm.eval is True else "inference"
+
         # finding performance on both dev and test dataset
         for corpus in [self.train_data, self.dev_data, self.test_data]:
             total_energy = 0.0
@@ -168,7 +170,7 @@ class SpenTrainer(BaseTrain):
                         self.model.pretrain_diff,
                         self.model.ssvm_diff,
                         self.model.pretrain_outputs,
-                        self.model.infnet_outputs
+                        self.model.ssvm_outputs
                     ]
                 else:
                     outputs = [
@@ -202,7 +204,7 @@ class SpenTrainer(BaseTrain):
 
             if config.eval_print.f1 is True:
                 logger.info("F1 score of pretrained network on %s is %.4f", corpus.split, pretrain_f1_score)
-                logger.info("F1 score of inference network on %s is %.4f", corpus.split, infnet_f1_score)
+                logger.info("F1 score of %s network on %s is %.4f", inference_mode, corpus.split, infnet_f1_score)
 
             if config.eval_print.accuracy is True:
                 logger.info(
@@ -210,8 +212,8 @@ class SpenTrainer(BaseTrain):
                     corpus.split, total_pretrain_correct / corpus.len, total_pretrain_correct, corpus.len
                 )
                 logger.info(
-                    "Accuracy of inference network on %s is %.4f (%d / %d)",
-                    corpus.split, total_infnet_correct / corpus.len, total_infnet_correct, corpus.len
+                    "Accuracy of %s on %s is %.4f (%d / %d)",
+                    inference_mode, corpus.split, total_infnet_correct / corpus.len, total_infnet_correct, corpus.len
                 )
 
     def f1_score(self, outputs, gt_outputs):

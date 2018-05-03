@@ -22,6 +22,7 @@ def process_config(jsonfile):
     config.data = munch.Munch(config.data)
     config.train = munch.Munch(config.train)
     config.ssvm = munch.Munch(config.ssvm)
+    config.eval_print = munch.Munch(config.eval_print)
 
     config.summary_dir = os.path.join("experiments", config.exp_name, "summary/")
     config.checkpoint_dir = os.path.join("experiments", config.exp_name, "checkpoint/")

@@ -15,14 +15,14 @@
     "entities_vocab_size": 201933,
     "embeddings_tune": false,
     "max_to_keep": 5,
-    "num_epochs": [4, 1, 5],
+    "num_epochs": [10, 1, 5],
     "train": {
         "diff_type": "sq_diff",
         "batch_size": 32,
         "state_size": [784],
         "max_to_keep": 5,
         "hidden_units": 200,
-        "lr_feat": 0.001,
+        "lr_feat": 0.01,
         "lr_phi": 0.001,
         "lr_theta": 0.001,
         "lr_psi": 0.001,
@@ -37,5 +37,10 @@
         "steps": 10,
         "eval": false,
         "lr_inference": 0.1
+    },
+    "eval_print": {
+        "f1": false,
+        "accuracy": true,
+        "energy": false
     }
 }

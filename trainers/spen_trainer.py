@@ -66,7 +66,6 @@ class SpenTrainer(BaseTrain):
     def copy_infnet(self):
         logger.info("Copying trained inference net weights")
         self.sess.run(self.model.copy_infnet_ops)
-        self.evaluate()
 
     def step_adversarial(self):
         feed_dict = self.get_feed_dict()
@@ -131,12 +130,19 @@ class SpenTrainer(BaseTrain):
         return new_batch_x, new_batch_y
 
     def evaluate(self):
+        config = self.config
+
         batch_size = self.config.train.batch_size
         # finding performance on both dev and test dataset
         for corpus in [self.train_data, self.dev_data, self.test_data]:
             total_energy = 0.0
             total_pretrain_correct = 0
             total_infnet_correct = 0
+
+            all_pretrain_outputs = np.zeros((corpus.len, config.type_vocab_size))
+            all_infnet_outputs = np.zeros((corpus.len, config.type_vocab_size))
+            all_gt_outputs = np.zeros((corpus.len, config.type_vocab_size))
+
             num_batches = int(np.ceil(corpus.len / batch_size))
             for batch in range(num_batches):
                 batch_x, batch_y = next(corpus.next_batch(batch_size))
@@ -155,29 +161,76 @@ class SpenTrainer(BaseTrain):
                     # begin by initializing self.ssvm_y_pred to random value
                     self.sess.run(self.model.ssvm_y_pred.initializer)
                     # inner optimization loop over y
-                    for i in range(self.config.ssvm.steps):
+                    for i in range(config.ssvm.steps):
                         self.sess.run(self.model.ssvm_infer_y_opt, feed_dict=feed_dict)
-                    outputs = \
-                        [self.model.energy_net1.energy_out, self.model.pretrain_diff, self.model.ssvm_diff]
+                    outputs = [
+                        self.model.energy_net1.energy_out,
+                        self.model.pretrain_diff,
+                        self.model.ssvm_diff,
+                        self.model.pretrain_outputs,
+                        self.model.infnet_outputs
+                    ]
                 else:
-                    outputs = \
-                        [self.model.energy_net1.energy_out, self.model.pretrain_diff, self.model.infnet_diff]
+                    outputs = [
+                        self.model.energy_net1.energy_out,
+                        self.model.pretrain_diff,
+                        self.model.infnet_diff,
+                        self.model.pretrain_outputs,
+                        self.model.infnet_outputs
+                    ]
 
-                energy, pretrain_diff, infnet_diff = self.sess.run(outputs, feed_dict=feed_dict)
+                energy, pretrain_diff, infnet_diff, pretrain_outputs, infnet_outputs = \
+                    self.sess.run(outputs, feed_dict=feed_dict)
                 total_energy += np.sum(energy[:total])
                 total_pretrain_correct += total - np.count_nonzero(pretrain_diff[:total])
                 total_infnet_correct += total - np.count_nonzero(infnet_diff[:total])
+
+                all_pretrain_outputs[batch * batch_size:(batch + 1) * batch_size] = pretrain_outputs[:total]
+                all_infnet_outputs[batch * batch_size:(batch + 1) * batch_size] = infnet_outputs[:total]
+                all_gt_outputs[batch * batch_size:(batch + 1) * batch_size] = batch_y[:total]
+
             # Verify that the data is completed
             if corpus.batch_pointer != 0:
                 logger.info("corpus %s not completed" % corpus.split)
                 sys.exit(0)
 
-            logger.info("Ground truth energy on %s corpus is %.4f", corpus.split, total_energy)
-            logger.info(
-                "Accuracy of pretrained network is %d / %d = %.4f",
-                total_pretrain_correct, corpus.len, total_pretrain_correct / corpus.len
-            )
-            logger.info(
-                "Accuracy of inference network is %d / %d = %.4f",
-                total_infnet_correct, corpus.len, total_infnet_correct / corpus.len
-            )
+            pretrain_f1_score = self.f1_score(all_pretrain_outputs, all_gt_outputs)
+            infnet_f1_score = self.f1_score(all_infnet_outputs, all_gt_outputs)
+
+            if config.eval_print.energy is True:
+                logger.info("Ground truth energy on %s corpus is %.4f", corpus.split, total_energy)
+
+            if config.eval_print.f1 is True:
+                logger.info("F1 score of pretrained network on %s is %.4f", corpus.split, pretrain_f1_score)
+                logger.info("F1 score of inference network on %s is %.4f", corpus.split, infnet_f1_score)
+
+            if config.eval_print.accuracy is True:
+                logger.info(
+                    "Accuracy of pretrained network on %s is %.4f (%d / %d)",
+                    corpus.split, total_pretrain_correct / corpus.len, total_pretrain_correct, corpus.len
+                )
+                logger.info(
+                    "Accuracy of inference network on %s is %.4f (%d / %d)",
+                    corpus.split, total_infnet_correct / corpus.len, total_infnet_correct, corpus.len
+                )
+
+    def f1_score(self, outputs, gt_outputs):
+        type_vocab_size = self.config.type_vocab_size
+        precision_total = 0.0
+        recall_total = 0.0
+        for i in range(type_vocab_size):
+            # Hacky way to allow us to use np.count_nonzero function
+            # Labels of type predicted=1, gt=1
+            tp = np.count_nonzero((2 * outputs[:, i] - gt_outputs[:, i]) == 1)
+            # Labels of type predicted=1, gt=0
+            fp = np.count_nonzero((outputs[:, i] - gt_outputs[:, i]) == 1)
+            # Labels of type predicted=0, gt=1
+            fn = np.count_nonzero((outputs[:, i] - gt_outputs[:, i]) == -1)
+            if (tp + fp) != 0:
+                precision_total += float(tp) / (tp + fp)
+            if (tp + fn) != 0:
+                recall_total += float(tp) / (tp + fn)
+        precision = precision_total / type_vocab_size
+        recall = recall_total / type_vocab_size
+        f1 = (2 * precision * recall) / (precision + recall)
+        return f1

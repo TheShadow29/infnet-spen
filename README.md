@@ -11,6 +11,7 @@ Course Project for CS726 Advanced Machine Learning
 
 ## Running
 1. `python -m mains.infnet --config configs/figment.json`
+2. `python -m mains.infnet --config configs/bibtex.json`
 
 ## Tuning
 1. `python generate_configs.py`

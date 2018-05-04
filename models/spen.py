@@ -127,8 +127,7 @@ class SPEN(BaseModel):
                 tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=ENERGY_NET_SCOPE)
             )
             # Entropy Regularization, Section 5 of Tu & Gimpel 2018
-            # Assuming tf.nn.sigmoid_cross_entropy_with_logits
-            self.reg_losses_entropy = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(
+            self.reg_losses_entropy = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
                 labels=self.inference_net.probs,
                 logits=self.inference_net.layer3_out
             ))
@@ -163,12 +162,8 @@ class SPEN(BaseModel):
                 config, self.input_x_vector
             )
         copy_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=COPY_INFNET_SCOPE)
-        # We remove the last bias feature since we don't have a pre-trained version of it
-        copy_vars = copy_vars[:-1]
 
         infnet_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=INFNET_SCOPE)
-        # We remove the last bias feature since we don't have a pre-trained version of it
-        infnet_vars = infnet_vars[:-1]
 
         pretrain_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=FEAT_SCOPE)
         # We take a negative sign here since we want "probabilities", not "energy"
@@ -191,7 +186,7 @@ class SPEN(BaseModel):
                 tf.reduce_sum(tf.square(copy_var - infnet_var))
                 for copy_var, infnet_var in zip(copy_vars, infnet_vars)
             ]
-            self.pre_train_bias = tf.add_n(self.var_diff)
+            self.pretrain_bias = tf.add_n(self.var_diff)
 
     def ssvm_losses(self):
         config = self.config
@@ -293,10 +288,10 @@ class SPEN(BaseModel):
                 self.difference - self.energy_net2.energy_out + self.energy_net1.energy_out,
                 tf.constant([0] * batch_size, dtype=tf.float32)
             )
-            self.base_objective_real = tf.reduce_sum(
+            self.base_objective_real = tf.reduce_mean(
                 self.difference - self.energy_net2.energy_out + self.energy_net1.energy_out
             )
-            self.base_objective = tf.reduce_sum(max_difference)
+            self.base_objective = tf.reduce_mean(max_difference)
 
         with tf.name_scope('theta_cost'):
             self.cost_theta = \
@@ -309,7 +304,7 @@ class SPEN(BaseModel):
                 self.base_objective - \
                 lamb_reg_phi * self.reg_losses_phi - \
                 lamb_reg_entropy * self.reg_losses_entropy - \
-                lamb_pretrain_bias * self.pre_train_bias
+                lamb_pretrain_bias * self.pretrain_bias
             self.cost_phi = -1 * self.gain_phi
 
         with tf.name_scope('phi_opt'):
@@ -327,14 +322,12 @@ class SPEN(BaseModel):
         config = self.config
 
         infnet_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=INFNET_SCOPE)
-        lamb_reg_phi = config.train.lamb_reg_phi
         lamb_reg_entropy = config.train.lamb_reg_entropy
 
         with tf.name_scope('psi_cost'):
             # Psi parameter optimization, Equation (5) in Tu & Gimpel, 2018
             self.energy_psi = \
                 tf.reduce_sum(self.energy_net2.energy_out) + \
-                lamb_reg_phi * self.reg_losses_phi + \
                 lamb_reg_entropy * self.reg_losses_entropy
 
         with tf.name_scope('psi_opt'):
@@ -349,7 +342,7 @@ class SPEN(BaseModel):
             self.pretrain_probs = self.energy_net1.pretrain_probs
             self.infnet_probs = self.inference_net.probs
             # pretrained inference
-            self.pretrain_outputs = tf.round(self.pretrain_probs + 0.5 - threshold)
+            self.pretrain_outputs = tf.round(self.pretrain_probs)
             self.pretrain_diff = tf.cast(
                 tf.reduce_sum(tf.abs(self.pretrain_outputs - self.labels_y), axis=1),
                 dtype=tf.int64

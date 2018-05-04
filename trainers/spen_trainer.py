@@ -81,7 +81,7 @@ class SpenTrainer(BaseTrain):
                 'reg_losses_theta': self.model.reg_losses_theta,
                 'reg_losses_phi': self.model.reg_losses_phi,
                 'reg_losses_entropy': self.model.reg_losses_entropy,
-                'pre_train_bias': self.model.pre_train_bias
+                'pretrain_bias': self.model.pretrain_bias
             }
             self.tf_logger.summarize(
                 self.model.global_step_tensor.eval(self.sess),
@@ -134,15 +134,18 @@ class SpenTrainer(BaseTrain):
 
         batch_size = self.config.train.batch_size
         inference_mode = "ssvm" if config.ssvm.eval is True else "inference"
+        f1_score_function = self.f1_score_examples if config.f1_score_mode == 'examples' else self.f1_score_labels
+
+        infnet_threshold = -1
 
         # finding performance on both dev and test dataset
-        for corpus in [self.train_data, self.dev_data, self.test_data]:
+        for corpus in [self.dev_data, self.test_data]:
             total_energy = 0.0
             total_pretrain_correct = 0
             total_infnet_correct = 0
 
-            all_pretrain_outputs = np.zeros((corpus.len, config.type_vocab_size))
-            all_infnet_outputs = np.zeros((corpus.len, config.type_vocab_size))
+            all_pretrain_probs = np.zeros((corpus.len, config.type_vocab_size))
+            all_infnet_probs = np.zeros((corpus.len, config.type_vocab_size))
             all_gt_outputs = np.zeros((corpus.len, config.type_vocab_size))
 
             num_batches = int(np.ceil(corpus.len / batch_size))
@@ -169,26 +172,26 @@ class SpenTrainer(BaseTrain):
                         self.model.energy_net1.energy_out,
                         self.model.pretrain_diff,
                         self.model.ssvm_diff,
-                        self.model.pretrain_outputs,
-                        self.model.ssvm_outputs
+                        self.model.pretrain_probs,
+                        self.model.ssvm_probs
                     ]
                 else:
                     outputs = [
                         self.model.energy_net1.energy_out,
                         self.model.pretrain_diff,
                         self.model.infnet_diff,
-                        self.model.pretrain_outputs,
-                        self.model.infnet_outputs
+                        self.model.pretrain_probs,
+                        self.model.infnet_probs
                     ]
 
-                energy, pretrain_diff, infnet_diff, pretrain_outputs, infnet_outputs = \
+                energy, pretrain_diff, infnet_diff, pretrain_probs, infnet_probs = \
                     self.sess.run(outputs, feed_dict=feed_dict)
                 total_energy += np.sum(energy[:total])
                 total_pretrain_correct += total - np.count_nonzero(pretrain_diff[:total])
                 total_infnet_correct += total - np.count_nonzero(infnet_diff[:total])
 
-                all_pretrain_outputs[batch * batch_size:(batch + 1) * batch_size] = pretrain_outputs[:total]
-                all_infnet_outputs[batch * batch_size:(batch + 1) * batch_size] = infnet_outputs[:total]
+                all_pretrain_probs[batch * batch_size:(batch + 1) * batch_size] = pretrain_probs[:total]
+                all_infnet_probs[batch * batch_size:(batch + 1) * batch_size] = infnet_probs[:total]
                 all_gt_outputs[batch * batch_size:(batch + 1) * batch_size] = batch_y[:total]
 
             # Verify that the data is completed
@@ -196,19 +199,26 @@ class SpenTrainer(BaseTrain):
                 logger.info("corpus %s not completed" % corpus.split)
                 sys.exit(0)
 
-            if config.f1_score_mode == 'examples':
-                pretrain_f1_score = self.f1_score_examples(all_pretrain_outputs, all_gt_outputs)
-                infnet_f1_score = self.f1_score_examples(all_infnet_outputs, all_gt_outputs)
+            pretrain_f1_score = f1_score_function(all_pretrain_probs, all_gt_outputs, 0.5)
+
+            if infnet_threshold == -1:
+                thresholds = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.10, 0.15, 0.2, 0.25, 0.30,
+                              0.35, 0.4, 0.45, 0.5, 0.55, 0.60, 0.65, 0.70, 0.75]
+                best_f1 = -1.0
+                for t in thresholds:
+                    f1_score = f1_score_function(all_infnet_probs, all_gt_outputs, t)
+                    infnet_threshold = t if f1_score > best_f1 else infnet_threshold
+                    best_f1 = f1_score if f1_score > best_f1 else best_f1
+                logger.info("Chosen threshold value is %.4f", infnet_threshold)
             else:
-                pretrain_f1_score = self.f1_score_labels(all_pretrain_outputs, all_gt_outputs)
-                infnet_f1_score = self.f1_score_labels(all_infnet_outputs, all_gt_outputs)
+                best_f1 = f1_score_function(all_infnet_probs, all_gt_outputs, infnet_threshold)
 
             if config.eval_print.energy is True:
                 logger.info("Ground truth energy on %s corpus is %.4f", corpus.split, total_energy)
 
             if config.eval_print.f1 is True:
                 logger.info("F1 score of pretrained network on %s is %.4f", corpus.split, pretrain_f1_score)
-                logger.info("F1 score of %s network on %s is %.4f", inference_mode, corpus.split, infnet_f1_score)
+                logger.info("F1 score of %s network on %s is %.4f", inference_mode, corpus.split, best_f1)
 
             if config.eval_print.accuracy is True:
                 logger.info(
@@ -220,10 +230,13 @@ class SpenTrainer(BaseTrain):
                     inference_mode, corpus.split, total_infnet_correct / corpus.len, total_infnet_correct, corpus.len
                 )
 
-    def f1_score_labels(self, outputs, gt_outputs):
+    def f1_score_labels(self, probs, gt_outputs, threshold):
         type_vocab_size = self.config.type_vocab_size
         precision_total = 0.0
         recall_total = 0.0
+
+        outputs = np.greater(probs, threshold)
+
         for i in range(type_vocab_size):
             # Hacky way to allow us to use np.count_nonzero function
             # Labels of type predicted=1, gt=1
@@ -248,8 +261,11 @@ class SpenTrainer(BaseTrain):
         f1 = (2 * precision * recall) / (precision + recall)
         return f1
 
-    def f1_score_examples(self, outputs, gt_outputs):
+    def f1_score_examples(self, probs, gt_outputs, threshold):
         f1_total = 0.0
+
+        outputs = np.greater(probs, threshold)
+
         for i in range(len(outputs)):
             # Hacky way to allow us to use np.count_nonzero function
             # Labels of type predicted=1, gt=1

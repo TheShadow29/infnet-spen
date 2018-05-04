@@ -30,6 +30,7 @@ class InferenceNet(object):
         self.layer3_out = tf.layers.dense(
             inputs=self.layer2_out,
             units=self.type_vocab_size,
+            use_bias=False,
             activation=None,
             name='layer3'
         )

@@ -18,3 +18,8 @@ Course Project for CS726 Advanced Machine Learning
 2. `mkdir logs`
 3. `python run.py`
 4. `python analysis.py`
+
+## ToDo
+- [x] BibTex
+- [ ] Figment Dataset
+- [ ] WGAN / Improved WGAN

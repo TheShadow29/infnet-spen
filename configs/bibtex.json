@@ -16,8 +16,7 @@
 	"entities_vocab_size": 201933,
 	"embeddings_tune": false,
 	"max_to_keep": 5,
-	"num_epochs": [10, 10, 10],
-	"threshold": 0.001,
+	"num_epochs": [10, 9, 4],
 	"train": {
 		"diff_type": "sq_diff",
 		"batch_size": 32,
@@ -28,7 +27,6 @@
 		"lr_phi": 0.001,
 		"lr_theta": 0.001,
 		"lr_psi": 0.00001,
-		"lamb_reg_feats": 0,
 		"lamb_reg_phi": 0.001,
 		"lamb_reg_theta": 0.001,
 		"lamb_reg_entropy": 1,
@@ -43,7 +41,9 @@
 	"eval_print": {
 		"f1": true,
 		"accuracy": false,
-		"energy": false
-	},
-	"f1_score_mode": "examples"
+		"energy": false,
+        "pretrain": true,
+        "infnet": true,
+		"f1_score_mode": "examples"
+	}
 }

@@ -107,13 +107,13 @@ class SPEN(BaseModel):
                 config, self.feature_input, self.labels_y
             )
             # DEBUG variable
-            self.red_energy_gt_out = tf.reduce_sum(self.energy_net1.energy_out)
+            self.red_energy_gt_out = tf.reduce_mean(self.energy_net1.energy_out)
         with tf.variable_scope(BASE_ENERGY_NET_SCOPE, reuse=True, regularizer=regularizer):
             self.energy_net2 = EnergyNet(
                 config, self.feature_input, self.inference_net.probs
             )
             # DEBUG variable
-            self.red_energy_inf_out = tf.reduce_sum(self.energy_net2.energy_out)
+            self.red_energy_inf_out = tf.reduce_mean(self.energy_net2.energy_out)
 
     def regularize(self):
         with tf.name_scope('regularize'):
@@ -133,17 +133,15 @@ class SPEN(BaseModel):
             ))
 
     def pretrain_feats(self):
-        lamb_reg_feats = self.config.train.lamb_reg_feats
-
         with tf.name_scope('pretrain_feats'):
             # We take a negative sign here since we want "probabilities", not "energy"
             logits = -1 * self.energy_net1.negative_logits
             # Pre-training objective
-            self.feats_ce_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(
+            self.feats_ce_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
                 labels=self.labels_y,
                 logits=logits
             ))
-            self.feats_opt = self.feats_ce_loss + lamb_reg_feats * self.reg_losses_feats
+            self.feats_opt = self.feats_ce_loss
             feat_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=FEAT_SCOPE)
             # The energy network local function is the final layer of the feed-forward network
             var_list = [self.energy_net1.linear_wt] + feat_vars
@@ -209,7 +207,7 @@ class SPEN(BaseModel):
             self.energy_net3 = EnergyNet(
                 config, self.feature_input, self.ssvm_y_pred_clip
             )
-            self.red_energy_y_pred = tf.reduce_sum(self.energy_net3.energy_out)
+            self.red_energy_y_pred = tf.reduce_mean(self.energy_net3.energy_out)
 
         # Choosing the appropriate difference function
         if config.train.diff_type == 'sq_diff':
@@ -231,13 +229,13 @@ class SPEN(BaseModel):
             self.ssvm_difference - self.energy_net3.energy_out + self.energy_net1.energy_out,
             tf.constant([0] * batch_size, dtype=tf.float32)
         )
-        self.ssvm_base_objective = tf.reduce_sum(ssvm_max_difference)
+        self.ssvm_base_objective = tf.reduce_mean(ssvm_max_difference)
         # Defining the loss augmented inference loss
-        self.cost_augmented_inference = tf.reduce_sum(
+        self.cost_augmented_inference = tf.reduce_mean(
             -1 * self.ssvm_difference + self.energy_net3.energy_out
         )
         # This loss term is just used for inference by directly minimizing energy
-        self.cost_inference = tf.reduce_sum(
+        self.cost_inference = tf.reduce_mean(
             self.energy_net3.energy_out
         )
         # Defining the loss function for theta
@@ -281,7 +279,7 @@ class SPEN(BaseModel):
                 self.difference = tf.constant([0] * batch_size, dtype=tf.float32)
             elif config.train.diff_type == 'slack':
                 self.difference = tf.constant([1] * batch_size, dtype=tf.float32)
-            self.red_difference = tf.reduce_sum(self.difference)
+            self.red_difference = tf.reduce_mean(self.difference)
 
             # Applying the hinge to the loss function
             max_difference = tf.maximum(
@@ -336,33 +334,14 @@ class SPEN(BaseModel):
             )
 
     def evaluate(self):
-        threshold = self.config.threshold
-
         with tf.name_scope('evaluate'):
             self.pretrain_probs = self.energy_net1.pretrain_probs
             self.infnet_probs = self.inference_net.probs
-            # pretrained inference
-            self.pretrain_outputs = tf.round(self.pretrain_probs)
-            self.pretrain_diff = tf.cast(
-                tf.reduce_sum(tf.abs(self.pretrain_outputs - self.labels_y), axis=1),
-                dtype=tf.int64
-            )
-            # infnet based inference
-            self.infnet_outputs = tf.round(self.infnet_probs + 0.5 - threshold)
-            self.infnet_diff = tf.cast(
-                tf.reduce_sum(tf.abs(self.infnet_outputs - self.labels_y), axis=1),
-                dtype=tf.int64
-            )
+
             if self.config.ssvm.enable is True:
                 # SSVM based inference
                 # Please optimize over ssvm_y_pred before using these nodes
-                self.ssvm_outputs = tf.round(self.ssvm_y_pred_clip + 0.5 - threshold)
-                self.ssvm_diff = tf.cast(
-                    tf.reduce_sum(tf.abs(self.ssvm_outputs - self.labels_y), axis=1),
-                    dtype=tf.int64
-                )
-            self.pretrain_results = self.config.train.batch_size - tf.count_nonzero(self.pretrain_diff)
-            self.infnet_results = self.config.train.batch_size - tf.count_nonzero(self.infnet_diff)
+                self.ssvm_probs = self.ssvm_y_pred_clip
 
     def init_saver(self):
         with tf.name_scope('saver'):

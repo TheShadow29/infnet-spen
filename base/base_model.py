@@ -39,6 +39,7 @@ class BaseModel:
         # DON'T forget to add the global step tensor to the tensorflow trainer
         with tf.variable_scope('global_step'):
             self.global_step_tensor = tf.Variable(0, trainable=False, name='global_step')
+            self.global_step_tensor_inf = tf.Variable(0, trainable=False, name='global_step_inf')
 
     def init_saver(self):
         # just copy the following line in your child class

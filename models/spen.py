@@ -137,7 +137,7 @@ class SPEN(BaseModel):
             # We take a negative sign here since we want "probabilities", not "energy"
             logits = -1 * self.energy_net1.negative_logits
             # Pre-training objective
-            self.feats_ce_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
+            self.feats_ce_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(
                 labels=self.labels_y,
                 logits=logits
             ))
@@ -222,7 +222,6 @@ class SPEN(BaseModel):
             self.ssvm_difference = tf.constant([0] * batch_size, dtype=tf.float32)
         elif config.train.diff_type == 'slack':
             self.ssvm_difference = tf.constant([1] * batch_size, dtype=tf.float32)
-        self.ssvm_red_difference = tf.reduce_sum(self.ssvm_difference)
 
         # Defining the SSVM loss criterion
         ssvm_max_difference = tf.maximum(
@@ -279,7 +278,6 @@ class SPEN(BaseModel):
                 self.difference = tf.constant([0] * batch_size, dtype=tf.float32)
             elif config.train.diff_type == 'slack':
                 self.difference = tf.constant([1] * batch_size, dtype=tf.float32)
-            self.red_difference = tf.reduce_mean(self.difference)
 
             # Applying the hinge to the loss function
             max_difference = tf.maximum(
@@ -321,16 +319,18 @@ class SPEN(BaseModel):
 
         infnet_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=INFNET_SCOPE)
         lamb_reg_entropy = config.train.lamb_reg_entropy
+        lamb_reg_phi = config.train.lamb_reg_phi
 
         with tf.name_scope('psi_cost'):
             # Psi parameter optimization, Equation (5) in Tu & Gimpel, 2018
             self.energy_psi = \
                 tf.reduce_sum(self.energy_net2.energy_out) + \
-                lamb_reg_entropy * self.reg_losses_entropy
+                lamb_reg_entropy * self.reg_losses_entropy + \
+                lamb_reg_phi * self.reg_losses_phi
 
         with tf.name_scope('psi_opt'):
             self.psi_opt = tf.train.AdamOptimizer(self.config.train.lr_psi).minimize(
-                self.energy_psi, var_list=infnet_vars
+                self.energy_psi, global_step=self.global_step_tensor_inf, var_list=infnet_vars
             )
 
     def evaluate(self):

@@ -9,14 +9,15 @@
 		"finput_dim": 1836,
 		"data_generator": "BibtexDataGenerator"
 	},
-	"tensorboard": true,
+	"tensorboard_train": false,
+	"tensorboard_infer": true,
 	"feature_size": 200,
 	"label_measurements": 15,
 	"type_vocab_size": 159,
 	"entities_vocab_size": 201933,
 	"embeddings_tune": false,
 	"max_to_keep": 5,
-	"num_epochs": [9, 9, 4],
+	"num_epochs": [10, 20, 20],
 	"train": {
 		"diff_type": "sq_diff",
 		"batch_size": 32,
@@ -44,6 +45,7 @@
 		"energy": false,
         "pretrain": true,
         "infnet": true,
-		"f1_score_mode": "examples"
+		"f1_score_mode": "examples",
+		"threshold": true
 	}
 }

@@ -86,13 +86,12 @@ class SpenTrainer(BaseTrain):
         feed_dict = self.get_feed_dict()
         self.sess.run(self.model.phi_opt, feed_dict=feed_dict)
         self.sess.run(self.model.theta_opt, feed_dict=feed_dict)
-        if self.config.tensorboard is True:
+        if self.config.tensorboard_train is True:
             self.summaries = {
                 'base_objective': self.model.base_objective,
                 'base_obj_real': self.model.base_objective_real,
                 'energy_inf_net': self.model.red_energy_inf_out,
                 'energy_ground_truth': self.model.red_energy_gt_out,
-                'margin_loss': self.model.red_difference,
                 'reg_losses_theta': self.model.reg_losses_theta,
                 'reg_losses_phi': self.model.reg_losses_phi,
                 'reg_losses_entropy': self.model.reg_losses_entropy,
@@ -117,7 +116,6 @@ class SpenTrainer(BaseTrain):
                 'base_objective': self.model.ssvm_base_objective,
                 'energy_y_pred': self.model.red_energy_y_pred,
                 'energy_ground_truth': self.model.red_energy_gt_out,
-                'ssvm_difference': self.model.ssvm_red_difference,
                 'reg_losses_theta': self.model.reg_losses_theta
             }
             self.tf_logger.summarize(
@@ -126,7 +124,20 @@ class SpenTrainer(BaseTrain):
             )
 
     def step_infnet_energy(self):
-        self.sess.run(self.model.psi_opt, feed_dict=self.get_feed_dict())
+        feed_dict = self.get_feed_dict()
+        self.sess.run(self.model.psi_opt, feed_dict=feed_dict)
+        if self.config.tensorboard_infer is True:
+            self.summaries = {
+                'base_objective': self.model.base_objective,
+                'base_obj_real': self.model.base_objective_real,
+                'energy_inf_net': self.model.red_energy_inf_out,
+                'reg_losses_phi': self.model.reg_losses_phi,
+                'reg_losses_entropy': self.model.reg_losses_entropy
+            }
+            self.tf_logger.summarize(
+                self.model.global_step_tensor_inf.eval(self.sess),
+                summaries_dict=self.sess.run(self.summaries, feed_dict)
+            )
 
     def pad_batch(self, batch_x, batch_y):
         batch_size = self.config.train.batch_size
@@ -224,7 +235,8 @@ class SpenTrainer(BaseTrain):
                             f1_score = f1_score_function(all_infnet_probs, all_gt_outputs, thresh)
                             infnet_threshold_f1 = thresh if f1_score > best_f1 else infnet_threshold_f1
                             best_f1 = f1_score if f1_score > best_f1 else best_f1
-                        logger.info("Chosen threshold value for f1 is %.4f", infnet_threshold_f1)
+                        if config.eval_print.threshold is True:
+                            logger.info("Chosen threshold value for f1 is %.4f", infnet_threshold_f1)
                     else:
                         best_f1 = f1_score_function(all_infnet_probs, all_gt_outputs, infnet_threshold_f1)
 
@@ -249,7 +261,8 @@ class SpenTrainer(BaseTrain):
                                 thresh if infnet_correct > best_infnet_correct else infnet_threshold_acc
                             best_infnet_correct = \
                                 infnet_correct if infnet_correct > best_infnet_correct else best_infnet_correct
-                        logger.info("Chosen threshold value for accuracy is %.4f", infnet_threshold_acc)
+                        if config.eval_print.threshold is True:
+                            logger.info("Chosen threshold value for accuracy is %.4f", infnet_threshold_acc)
                     else:
                         best_infnet_correct = self.accuracy(all_infnet_probs, all_gt_outputs, infnet_threshold_acc)
 

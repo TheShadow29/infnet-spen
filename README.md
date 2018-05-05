@@ -9,9 +9,13 @@ Course Project for CS726 Advanced Machine Learning
 1. Prepare the bibtex dataset. http://mulan.sourceforge.net/datasets.html
 2. `python data/preprocess_bibtex.py`
 
+1. Download the bookmarks dataset from [here](https://drive.google.com/open?id=1dEKnx0d0dgHSdy9OWuqjErrOJCQf1oVl).
+2. Place it in `data/bookmarks`. There is no need to run any proprocessing script.
+
 ## Running
 1. `python -m mains.infnet --config configs/figment.json`
 2. `python -m mains.infnet --config configs/bibtex.json`
+3. `python -m mains.infnet --config configs/bookmarks.json`
 
 ## Tuning
 1. `python generate_configs.py`

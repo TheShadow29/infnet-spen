@@ -17,7 +17,7 @@
 	"entities_vocab_size": 201933,
 	"embeddings_tune": false,
 	"max_to_keep": 5,
-	"num_epochs": [10, 10, 10],
+	"num_epochs": [20, 10, 10],
 	"train": {
 		"diff_type": "sq_diff",
 		"batch_size": 32,

@@ -1,5 +1,5 @@
 {
-	"exp_name": "bibtex_sq_diff",
+	"exp_name": "bibtex_sq_diff_3",
 	"data":{
 		"dataset": "bibtex",
 		"data_dir": "data/bibtex/",
@@ -9,15 +9,15 @@
 		"finput_dim": 1836,
 		"data_generator": "BibtexDataGenerator"
 	},
-	"tensorboard_train": false,
-	"tensorboard_infer": true,
+	"tensorboard_train": true,
+	"tensorboard_infer": false,
 	"feature_size": 200,
 	"label_measurements": 15,
 	"type_vocab_size": 159,
 	"entities_vocab_size": 201933,
 	"embeddings_tune": false,
 	"max_to_keep": 5,
-	"num_epochs": [10, 20, 20],
+	"num_epochs": [10, 20, 30],
 	"train": {
 		"diff_type": "sq_diff",
 		"batch_size": 32,
@@ -31,7 +31,9 @@
 		"lamb_reg_phi": 0.001,
 		"lamb_reg_theta": 0.001,
 		"lamb_reg_entropy": 1,
-		"lamb_pretrain_bias": 1
+		"lamb_pretrain_bias": 1,
+		"wgan_mode": false,
+		"lamb_wgan_penalty": 10
 	},
 	"ssvm": {
 		"enable": false,

@@ -114,6 +114,15 @@ class SPEN(BaseModel):
             )
             # DEBUG variable
             self.red_energy_inf_out = tf.reduce_mean(self.energy_net2.energy_out)
+        # Nodes for the W-GAN penalty
+        eps = tf.random_uniform([config.train.batch_size, 1])
+        self.modified_y = eps * self.labels_y + (1 - eps) * self.inference_net.probs
+        with tf.variable_scope(BASE_ENERGY_NET_SCOPE, reuse=True, regularizer=regularizer):
+            self.energy_net4 = EnergyNet(
+                config, self.feature_input, self.modified_y
+            )
+        grads = tf.gradients(self.energy_net4.energy_out, self.modified_y)
+        self.grad_penalty = tf.reduce_mean(tf.norm(grads, axis=1))
 
     def regularize(self):
         with tf.name_scope('regularize'):
@@ -264,6 +273,7 @@ class SPEN(BaseModel):
         lamb_reg_theta = config.train.lamb_reg_theta
         lamb_reg_entropy = config.train.lamb_reg_entropy
         lamb_pretrain_bias = config.train.lamb_pretrain_bias
+        lamb_wgan_penalty = config.train.lamb_wgan_penalty
 
         with tf.name_scope('base_objective'):
             if config.train.diff_type == 'sq_diff':
@@ -293,6 +303,8 @@ class SPEN(BaseModel):
             self.cost_theta = \
                 self.base_objective + \
                 lamb_reg_theta * self.reg_losses_theta
+            if config.train.wgan_mode is True:
+                self.cost_theta += lamb_wgan_penalty * tf.square(self.grad_penalty - 1)
 
         with tf.name_scope('gain_phi'):
             # Negative sign for reg_losses_phi since we want to maximize phi objective
@@ -309,7 +321,7 @@ class SPEN(BaseModel):
                 self.cost_phi, global_step=self.global_step_tensor, var_list=phi_vars
             )
         with tf.name_scope('theta_opt'):
-            theta_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=ENERGY_NET_SCOPE)
+            theta_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=ENERGY_NET_SCOPE)[1:]
             self.theta_opt = tf.train.AdamOptimizer(config.train.lr_theta).minimize(
                 self.cost_theta, var_list=theta_vars
             )

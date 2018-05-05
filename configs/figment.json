@@ -45,6 +45,7 @@
         "pretrain": true,
         "infnet": true,
         "f1_score_mode": "examples",
-        "threshold": false
+        "threshold": false,
+        "time_taken": true
     }
 }

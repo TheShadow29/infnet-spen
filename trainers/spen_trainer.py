@@ -2,6 +2,8 @@ from base.base_train import BaseTrain
 from tqdm import tqdm
 import numpy as np
 import sys
+import time
+
 from utils.logger import get_logger
 
 
@@ -37,6 +39,7 @@ class SpenTrainer(BaseTrain):
                 # Inference Net pre-training
                 self.step_pretrain()
         elif stage == 1:
+            self.total_time = 0
             self.current_corpus = self.train_data
             for batch in tqdm(range(self.num_batches_train)):
                 # Energy Network Minimization
@@ -44,6 +47,8 @@ class SpenTrainer(BaseTrain):
                     self.step_ssvm()
                 else:
                     self.step_adversarial()
+            if self.config.eval_print.time_taken is True:
+                logger.info("Training speed for this epoch - %.2f", float(self.train_data.len) / self.total_time)
         else:
             self.current_corpus = self.train_data
             for batch in tqdm(range(self.num_batches_train)):
@@ -84,8 +89,10 @@ class SpenTrainer(BaseTrain):
 
     def step_adversarial(self):
         feed_dict = self.get_feed_dict()
+        start = time.time()
         self.sess.run(self.model.phi_opt, feed_dict=feed_dict)
         self.sess.run(self.model.theta_opt, feed_dict=feed_dict)
+        self.total_time += time.time() - start
         if self.config.tensorboard_train is True:
             self.summaries = {
                 'base_objective': self.model.base_objective,
@@ -105,12 +112,14 @@ class SpenTrainer(BaseTrain):
     def step_ssvm(self):
         feed_dict = self.get_feed_dict()
         # begin by initializing self.ssvm_y_pred to random value
+        start = time.time()
         self.sess.run(self.model.ssvm_y_pred.initializer)
         # inner optimization loop over y
         for i in range(self.config.ssvm.steps):
             self.sess.run(self.model.ssvm_y_opt, feed_dict=feed_dict)
         # with max-margin y, run a theta update
         self.sess.run(self.model.ssvm_theta_opt, feed_dict=feed_dict)
+        self.total_time += time.time() - start
         if self.config.tensorboard is True:
             self.summaries = {
                 'base_objective': self.model.ssvm_base_objective,
@@ -175,6 +184,8 @@ class SpenTrainer(BaseTrain):
             all_gt_outputs = np.zeros((corpus.len, config.type_vocab_size))
 
             num_batches = int(np.ceil(corpus.len / batch_size))
+            total_time = 0
+
             for batch in range(num_batches):
                 batch_x, batch_y = next(corpus.next_batch(batch_size))
                 total = len(batch_x)
@@ -205,6 +216,10 @@ class SpenTrainer(BaseTrain):
                         self.model.pretrain_probs,
                         self.model.infnet_probs
                     ]
+                # This is just for profiling
+                start = time.time()
+                infnet_probs = self.sess.run(self.model.infnet_probs, feed_dict)
+                total_time += time.time() - start
 
                 energy, pretrain_probs, infnet_probs = self.sess.run(outputs, feed_dict=feed_dict)
                 total_energy += np.sum(energy[:total])
@@ -212,6 +227,9 @@ class SpenTrainer(BaseTrain):
                 all_pretrain_probs[batch * batch_size:(batch + 1) * batch_size] = pretrain_probs[:total]
                 all_infnet_probs[batch * batch_size:(batch + 1) * batch_size] = infnet_probs[:total]
                 all_gt_outputs[batch * batch_size:(batch + 1) * batch_size] = batch_y[:total]
+
+            if config.eval_print.time_taken is True:
+                logger.info("%s set speed = %.2f", corpus.split, float(corpus.len) / total_time)
 
             # Verify that the data is completed
             if corpus.batch_pointer != 0:

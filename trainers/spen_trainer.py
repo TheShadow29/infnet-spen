@@ -6,6 +6,7 @@ from utils.logger import get_logger
 
 
 logger = get_logger(__name__)
+EPSILON = 1e-7
 
 
 class SpenTrainer(BaseTrain):
@@ -44,8 +45,8 @@ class SpenTrainer(BaseTrain):
                 else:
                     self.step_adversarial()
         else:
-            self.current_corpus = self.dev_data
-            for batch in tqdm(range(self.num_batches_dev)):
+            self.current_corpus = self.train_data
+            for batch in tqdm(range(self.num_batches_train)):
                 self.batch_num = batch
                 # Inference Network post-training
                 self.step_infnet_energy()
@@ -284,10 +285,8 @@ class SpenTrainer(BaseTrain):
             fn = np.count_nonzero(
                 np.isclose(outputs[:, i] - gt_outputs[:, i], -1)
             )
-            if (tp + fp) != 0:
-                precision_total += float(tp) / (tp + fp)
-            if (tp + fn) != 0:
-                recall_total += float(tp) / (tp + fn)
+            precision_total += float(tp) / (tp + fp + EPSILON)
+            recall_total += float(tp) / (tp + fn + EPSILON)
         # Macro averaging of F1 score
         precision = precision_total / type_vocab_size
         recall = recall_total / type_vocab_size
@@ -299,31 +298,22 @@ class SpenTrainer(BaseTrain):
 
         outputs = np.greater(probs, threshold)
 
-        for i in range(len(outputs)):
-            # Hacky way to allow us to use np.count_nonzero function
-            # Labels of type predicted=1, gt=1
-            tp = np.count_nonzero(
-                np.isclose(2 * outputs[i, :] - gt_outputs[i, :], 1)
-            )
-            # Labels of type predicted=1, gt=0
-            fp = np.count_nonzero(
-                np.isclose(outputs[i, :] - gt_outputs[i, :], 1)
-            )
-            # Labels of type predicted=0, gt=1
-            fn = np.count_nonzero(
-                np.isclose(outputs[i, :] - gt_outputs[i, :], -1)
-            )
-            if (tp + fp) != 0:
-                precision = float(tp) / (tp + fp)
-            else:
-                precision = 0
-            if (tp + fn) != 0:
-                recall = float(tp) / (tp + fn)
-            else:
-                recall = 0
+        # Hacky way to allow us to use np.count_nonzero function
+        # Labels of type predicted=1, gt=1
+        tp = np.count_nonzero(
+            np.isclose(2 * outputs - gt_outputs, 1), axis=1
+        )
+        # Labels of type predicted=1, gt=0
+        fp = np.count_nonzero(
+            np.isclose(outputs - gt_outputs, 1), axis=1
+        )
+        # Labels of type predicted=0, gt=1
+        fn = np.count_nonzero(
+            np.isclose(outputs - gt_outputs, -1), axis=1
+        )
+        precision = tp / (tp + fp + EPSILON)
+        recall = tp / (tp + fn + EPSILON)
+        f1_total = (2 * precision * recall) / (precision + recall + EPSILON)
 
-            if (precision + recall) != 0:
-                f1_total += (2 * precision * recall) / (precision + recall)
-
-        f1 = f1_total / len(outputs)
+        f1 = np.sum(f1_total) / len(outputs)
         return f1

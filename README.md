@@ -27,3 +27,21 @@ Course Project for CS726 Advanced Machine Learning
 - [x] BibTex
 - [ ] Figment Dataset
 - [ ] WGAN / Improved WGAN
+
+## Code Description
+1. base/ : Contains the base model and base trainer. The model and trainer are  inherited from here.
+2. configs/ : Contains the configuration files stored in json format. All hyper-parameters are stored here. 
+3. data/ :  Contains scripts to process the data files and store them into pickle format
+4. data_loader/: Contains the class DataGenerator which is used to get data from the pipeline. Since most of our models are small, a naive implementation was fine. In case of bigger datasets, it might be worth looking into the tensorflow dataset api.
+5. mains/ : Contains the main file to be called which is `infnet.py` This takes in the configuration file, and uses it to initiliaze which model, trainer, hyper-parameteres to choose, which parameters to save for tensorboard etc. 
+5. models/ : Contains model definitions, each of which is a class. There are 4 such classes. EnergyNet, InferenceNet, FeatureNet, Spen. The first three are simple feed forward networks, and the last one is the actual model which is used and combines all the different networks together. 
+6. trainers/ : Contains the trainer, which schedules the training, evaluation, tensorboard logging among different things.
+7. utils/ : Contains utility function like the process_config which is used to parse the configuration file.
+8. `analysis.py`, `generate_configs.py`, `run.py`: are all used for  hyper-parameter tuning.
+
+## Acknowledgements:
+A major thanks to Lifu Tu and Kevin Gimpel (authors of the paper we have implemented) for sharing their theano code and responding promptly to our queries on the paper. Also thanks to Lifu for sharing his Theano Code. 
+
+## References:
+Lifu Tu and Kevin Gimpel. Learning approximate inference networks for structured prediction.
+CoRR, abs/1803.03376, 2018. URL http://arxiv.org/abs/1803.03376

@@ -33,11 +33,14 @@ class SpenTrainer(BaseTrain):
 
     def train_epoch(self, cur_epoch, stage=0):
         if stage == 0:
+            self.total_time = 0
             self.current_corpus = self.train_data
             for batch in tqdm(range(self.num_batches_train)):
                 self.batch_num = batch
                 # Inference Net pre-training
                 self.step_pretrain()
+            if self.config.eval_print.time_taken is True:
+                logger.info("Training speed for MLP - %.2f", float(self.train_data.len) / self.total_time)
         elif stage == 1:
             self.total_time = 0
             self.current_corpus = self.train_data
@@ -48,7 +51,7 @@ class SpenTrainer(BaseTrain):
                 else:
                     self.step_adversarial()
             if self.config.eval_print.time_taken is True:
-                logger.info("Training speed for this epoch - %.2f", float(self.train_data.len) / self.total_time)
+                logger.info("Training speed for adversarial - %.2f", float(self.train_data.len) / self.total_time)
         else:
             self.current_corpus = self.train_data
             for batch in tqdm(range(self.num_batches_train)):
@@ -80,7 +83,9 @@ class SpenTrainer(BaseTrain):
         return feed_dict
 
     def step_pretrain(self):
+        start = time.time()
         self.sess.run(self.model.feat_ce_opt, feed_dict=self.get_feed_dict())
+        self.total_time += time.time() - start
 
     def copy_infnet(self):
         logger.info("Copying trained inference net weights")

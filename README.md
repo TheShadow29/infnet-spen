@@ -1,5 +1,4 @@
-# Inference-SPEN
-Course Project for CS726 Advanced Machine Learning
+# Learning Approximate Inference Networks for Structured Prediction
 
 ## Initial Setup
 1. First prepare the dataset figment. http://cistern.cis.lmu.de/figment/
@@ -17,17 +16,6 @@ Course Project for CS726 Advanced Machine Learning
 2. `python -m mains.infnet --config configs/bibtex.json`
 3. `python -m mains.infnet --config configs/bookmarks.json`
 
-## Tuning
-1. `python generate_configs.py`
-2. `mkdir logs`
-3. `python run.py`
-4. `python analysis.py`
-
-## TODO
-- [x] BibTex
-- [x] Figment Dataset
-- [x] WGAN / Improved WGAN
-
 ## Code Description
 1. `base/` : Contains the base model and base trainer. The model and trainer are  inherited from here.
 2. `configs/` : Contains the configuration files stored in json format. All hyper-parameters are stored here.
@@ -40,7 +28,7 @@ Course Project for CS726 Advanced Machine Learning
 8. `analysis.py`, `generate_configs.py`, `run.py`: are all used for  hyper-parameter tuning.
 
 ## Acknowledgements:
-A major thanks to Lifu Tu and Kevin Gimpel (authors of the paper we have implemented) for sharing their theano code and responding promptly to our queries on the paper. We Lifu for sharing his Theano Code. We also thank David Belanger for the Bookmarks dataset and his original SPEN [implementation](https://github.com/davidBelanger/SPEN).
+A major thanks to Lifu Tu and Kevin Gimpel (authors of the paper we have implemented) for sharing their Theano code and responding promptly to our queries on the paper. We Lifu for sharing his Theano Code. We also thank David Belanger for the Bookmarks dataset and his original SPEN [implementation](https://github.com/davidBelanger/SPEN).
 
 ## References:
 Lifu Tu and Kevin Gimpel. Learning approximate inference networks for structured prediction.

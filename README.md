@@ -66,7 +66,7 @@
     3. `energy`: energy
     4. `pretrain`: energy / loss of pretrain
     5. `infnet`: energy / loss of inference network
-    6. `f1_score_mode`: Set to examples.
+    6. `f1_score_mode`: Set to examples to compute F1 score averaged over examples. Do label for F1 score averaged over labels. The paper does it over examples.
     7. `threshold`: Threshold adjusted on validation set
     8. `time_taken`: For time evaluation. Only training/inference step time. Not whole time.
 

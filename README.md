@@ -27,8 +27,51 @@
 7. `utils/` : Contains utility function like the process_config which is used to parse the configuration file.
 8. `analysis.py`, `generate_configs.py`, `run.py`: are all used for  hyper-parameter tuning.
 
+## Config File Information
+1. `exp_name` : Name of the experiment
+2. `data`: Contains info about the data
+   1. `dataset`: Name of the dataset
+   2. `data_dir`: Path for the top directory of data
+   3. `splits` : Splits for train, validation, test.
+   4. `embeddings`: True/False. True if pre-trained embeddings are available.
+   5. `vocab` : Same as above
+   6. `data_generator`: Name of the data generator defined in `data_loader.py`.
+3. `tensorboard_train`: Set True to save tensorboard  in the stage2
+4. `tensorboard_infer`: Same as above in stage3
+5. `feature_size`: Size of hidden layer in Feature Network
+6. `label_measurements`: Same as above in Energy Network
+7. `type_vocab_size`: Number of output labels.
+8. `entities_vocab_size`: Lookup table for embeddings.
+9. `embeddings_tune`: Set to true if embeddings vector to be updated.
+10. `max_to_keep`: Requiredby tensorflow saver that will be used in saving the checkpoints.
+11. `num_epochs` : Number of epochs in each stage
+12. `train`: Info about how to train
+    1. `diff_type`: \nabla operator in the paper
+    2. `batch_size`: batch size for training
+    3. `state_size`: Not required. Kept for historical reasons.
+    4. `hidden_units`: Hidden units in inference and feature net (depends on embeddings is true or false)
+    5. `lr_*`: learning rate for optimization of corresponding variable
+    6. `lambda_*`: lambda regularization for optimization of corresponding variable
+    7. `lambda_pretrain_bias`: How much to weigh the pretrained network (another term in paper).
+    8. `wgan_mode`: Improved WGAN penalty or not.
+    9. `lamb_wgan`: regularization for wgan penalty.
+13. `ssvm`: Implementation of SPEN 2016 by Belanger. Not complete since we couldn't find implementation of entropic gradient descent.
+    1. `enable`: To be ssvm or not to be
+    2. `steps`: Number of optimization steps in ssvm
+    3. `eval`: True if ssvm inference to be used.
+    4. `lr_inference`: learning rate for ssvm inference
+14. `eval_print`: What all to print for evaluation
+    1. `f1`: f1 score
+    2. `accuracy`: accuracy
+    3. `energy`: energy
+    4. `pretrain`: energy / loss of pretrain
+    5. `infnet`: energy / loss of inference network
+    6. `f1_score_mode`: Set to examples.
+    7. `threshold`: Threshold adjusted on validation set
+    8. `time_taken`: For time evaluation. Only training/inference step time. Not whole time.
+
 ## Acknowledgements:
-A major thanks to Lifu Tu and Kevin Gimpel (authors of the paper we have implemented) for sharing their Theano code and responding promptly to our queries on the paper. We Lifu for sharing his Theano Code. We also thank David Belanger for the Bookmarks dataset and his original SPEN [implementation](https://github.com/davidBelanger/SPEN).
+A major thanks to Lifu Tu and Kevin Gimpel (authors of the paper we have implemented) for sharing their Theano code and responding promptly to our queries on the paper. We thank Lifu for sharing his Theano Code. We also thank David Belanger for the Bookmarks dataset and his original SPEN [implementation](https://github.com/davidBelanger/SPEN).
 
 ## References:
 Lifu Tu and Kevin Gimpel. Learning approximate inference networks for structured prediction.

@@ -73,6 +73,8 @@
 ## Acknowledgements:
 A major thanks to Lifu Tu and Kevin Gimpel (authors of the paper we have implemented) for sharing their Theano code and responding promptly to our queries on the paper. We thank Lifu for sharing his Theano Code. We also thank David Belanger for the Bookmarks dataset and his original SPEN [implementation](https://github.com/davidBelanger/SPEN).
 
+We also thank the authors of tensorflow template https://github.com/MrGemy95/Tensorflow-Project-Template which served as a starting point for our project.
+
 ## References:
 Lifu Tu and Kevin Gimpel. Learning approximate inference networks for structured prediction.
 CoRR, abs/1803.03376, 2018. URL http://arxiv.org/abs/1803.03376
